@@ -13,8 +13,9 @@ import toolboxPng from '../assets/toolbox.png'
 import pawsPng from '../assets/paws.png'
 import { fetchEcoducts, type Ecoduct } from '../api/ecoducts'
 import { fetchInaturalistByPlace } from '../api/occurrences'
-import { fetchRoadkills } from '../api/roadkills'
-import { fetchPinchPoints } from '../api/pinchPoints'
+import { bboxToCircle, fetchInaturalist } from '../api/occurrences'
+import { fetchGbifRoadkills } from '../api/roadkills'
+import { fetchPinchPoints, type PinchPoint } from '../api/pinchPoints'
 import { fetchConnectivity, gridToCanvas } from '../api/connectivity'
 import { fetchHabitatPatches, type HabitatPatch } from '../api/habitatPatches'
 import { SPECIES, type Species } from '../api/technicalReport'
@@ -559,8 +560,50 @@ export function DataMap(props: Props) {
           const newBbox = `${Math.min(a0,lng).toFixed(4)},${Math.min(a1,lat).toFixed(4)},${Math.max(a0,lng).toFixed(4)},${Math.max(a1,lat).toFixed(4)}`
           onBboxChangeRef.current(newBbox)
         }
+        openPopup(patchHtml(f.properties as Record<string, string>), lng, lat)
       })
 
+      // ── cluster zoom-in ───────────────────────────────────────────────────
+      m.on('click', 'lyr-occ-cluster', (e) => {
+        const f = e.features?.[0]; if (!f) return
+        const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
+        ;(m.getSource(OCC_SRC) as GeoJSONSource).getClusterExpansionZoom(
+          f.properties!.cluster_id as number
+        ).then(zoom => { m.easeTo({ center: [lng, lat], zoom: zoom + 0.5 }) })
+      })
+
+      // ── drag-to-draw bbox ─────────────────────────────────────────────────
+      m.on('mousedown', (e: MapMouseEvent) => {
+        if (!isDrawingRef.current) return
+        const blocked = m.queryRenderedFeatures(e.point, {
+          layers: ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
+        })
+        if (blocked.length > 0) return
+        e.preventDefault()
+        drawStartRef.current = [e.lngLat.lng, e.lngLat.lat]
+        m.dragPan.disable()
+      })
+      m.on('mousemove', (e: MapMouseEvent) => {
+        if (!isDrawingRef.current || !drawStartRef.current) return
+        const [a0, a1] = drawStartRef.current
+        const { lng, lat } = e.lngLat
+        if (Math.abs(a0 - lng) > 0.0001 || Math.abs(a1 - lat) > 0.0001) {
+          const live = `${Math.min(a0,lng)},${Math.min(a1,lat)},${Math.max(a0,lng)},${Math.max(a1,lat)}`
+          ;(m.getSource(BBOX_SRC) as GeoJSONSource | undefined)?.setData(bboxLine(live))
+        }
+      })
+      m.on('mouseup', (e: MapMouseEvent) => {
+        if (!isDrawingRef.current || !drawStartRef.current) return
+        const [a0, a1] = drawStartRef.current
+        const { lng, lat } = e.lngLat
+        drawStartRef.current = null
+        m.dragPan.enable()
+        setIsDrawing(false)
+        if (Math.abs(a0 - lng) > 0.001 || Math.abs(a1 - lat) > 0.001) {
+          const newBbox = `${Math.min(a0,lng).toFixed(4)},${Math.min(a1,lat).toFixed(4)},${Math.max(a0,lng).toFixed(4)},${Math.max(a1,lat).toFixed(4)}`
+          onBboxChangeRef.current(newBbox)
+        }
+      })
       // ── user report hover tooltips ────────────────────────────────────────
       m.on('mousemove', 'lyr-user-reports', (e) => {
         const f = e.features?.[0]; if (!f) return
@@ -649,8 +692,6 @@ export function DataMap(props: Props) {
   }, [mapReady, layers])
 
   // ── fetch occurrences ────────────────────────────────────────────────────
-  // Always NL-wide via iNat place_id (7506); bbox is for corridor analysis, not
-  // for narrowing context overlays. Matches the roadkill behaviour.
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady || !speciesLatin) return
@@ -771,10 +812,6 @@ export function DataMap(props: Props) {
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
-    if (!bbox) {
-      ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(emptyFc())
-      return
-    }
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
@@ -960,20 +997,70 @@ export function DataMap(props: Props) {
         )}
       </div>
 
-      {/* loading spinner — centered over the map while pinch / connectivity solve runs */}
-      {(loadingCircuit || loadingPinch) && (
+      {/* draw region / clear region buttons */}
+      <div style={{
+        position: 'absolute', bottom: 32, right: 16, zIndex: 20,
+        display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end',
+      }}>
+        <button
+          onClick={() => setIsDrawing(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '7px',
+            padding: '8px 14px',
+            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+            fontSize: '0.54rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: isDrawing ? '#f0eee6' : '#1a2818',
+            background: isDrawing ? '#1a2818' : 'rgba(240,238,230,0.97)',
+            border: isDrawing ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
+            borderRadius: '2px', cursor: 'pointer',
+            backdropFilter: 'blur(14px)',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            transition: 'all 0.18s',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="1" width="12" height="12" rx="1"
+              stroke={isDrawing ? 'rgba(240,238,230,0.7)' : 'rgba(42,64,32,0.7)'}
+              strokeWidth="1.5" strokeDasharray="3 2"/>
+          </svg>
+          {isDrawing ? 'Cancel draw' : 'Draw region'}
+        </button>
+        {props.bbox && !isDrawing && (
+          <button
+            onClick={() => props.onBboxChange(null)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 12px',
+              fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+              fontSize: '0.5rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: 'rgba(0,0,0,0.45)',
+              background: 'rgba(240,238,230,0.9)',
+              border: '1px solid rgba(0,0,0,0.09)',
+              borderRadius: '2px', cursor: 'pointer',
+              backdropFilter: 'blur(14px)',
+              boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
+            }}
+          >
+            ✕ Clear region
+          </button>
+        )}
+      </div>
+
+      {/* circuit loading indicator */}
+      {loadingCircuit && (
         <div style={{
-          position: 'absolute', inset: 0, zIndex: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          pointerEvents: 'none',
+          position: 'absolute', top: 16, right: 60, zIndex: 10,
+          background: 'rgba(240,238,230,0.97)', backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(0,0,0,0.09)', borderRadius: '2px',
+          padding: '7px 16px', pointerEvents: 'none',
+          fontFamily: "'DM Sans', sans-serif", fontSize: '0.72rem', fontWeight: 500, color: '#2a4020',
+          boxShadow: '0 2px 12px rgba(26,40,24,0.1)',
+          display: 'flex', alignItems: 'center', gap: '7px',
         }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: '50%',
-            border: '4px solid rgba(0,0,0,0.12)',
-            borderTopColor: '#ec4899',
-            animation: 'wcSpin 0.8s linear infinite',
-          }} />
-          <style>{`@keyframes wcSpin { to { transform: rotate(360deg); } }`}</style>
+          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+            background: '#2a4020', animation: 'wcPulse 1s ease-in-out infinite' }} />
+          Running circuit analysis…
+          <style>{`@keyframes wcPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }`}</style>
         </div>
       )}
 
@@ -992,3 +1079,14 @@ export function DataMap(props: Props) {
   )
 }
 
+function viewportCircle(m: maplibregl.Map) {
+  const c = m.getCenter(), b = m.getBounds()
+  const dLat = (b.getNorth() - b.getSouth()) * 111
+  const dLng = (b.getEast() - b.getWest()) * 111 * Math.cos(c.lat * Math.PI / 180)
+  return { center: { lat: c.lat, lng: c.lng }, radiusKm: Math.round(Math.min(50, Math.max(2, 0.5 * Math.sqrt(dLat*dLat + dLng*dLng))) * 10) / 10 }
+}
+
+function viewportBbox(m: maplibregl.Map): string {
+  const b = m.getBounds()
+  return `${b.getWest().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getNorth().toFixed(3)}`
+}
