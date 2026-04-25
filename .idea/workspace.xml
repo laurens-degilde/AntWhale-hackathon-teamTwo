@@ -4,18 +4,37 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e08afba8-c278-48cb-9793-c936aee2e91c" name="Changes" comment="" />
+    <list default="true" id="e08afba8-c278-48cb-9793-c936aee2e91c" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/CircuitscapeRunner.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/CorridorPipeline.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/OsmRasteriserService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/corridorapi/service/CircuitscapeRunnerIT.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/config/RateLimitConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/config/RateLimitConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/exception/GlobalExceptionHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/exception/GlobalExceptionHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/ConnectivityService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/ConnectivityService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/OsmFeaturesService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/OsmFeaturesService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/PinchPointService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/PinchPointService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/ResistanceSurfaceService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/corridorapi/service/ResistanceSurfaceService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/occurrences.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/occurrences.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/api/pinchPoints.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/pinchPoints.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/DataMap.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/DataMap.tsx" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="ComposerSettings">
+    <execution />
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 6
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6
+}</component>
   <component name="ProjectId" id="3CqTzBITGYlkyXjLI3JNV5FY4Yz" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -27,9 +46,11 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
+    "dart.analysis.tool.window.visible": "false",
+    "git-widget-placeholder": "Rebasing feature/circuitscape",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Users/laurens/projects/AntWhale-hackathon-teamTwo"
+    "last_opened_file_path": "/Users/laurens/projects/AntWhale-hackathon-teamTwo",
+    "ts.external.directory.path": "/Users/ioana/AntWhale-hackathon-teamTwo/frontend/node_modules/typescript/lib"
   }
 }]]></component>
   <component name="SharedIndexes">

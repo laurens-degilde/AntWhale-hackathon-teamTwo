@@ -9,19 +9,19 @@ export interface PinchPoint {
   betweenPatches?: string[]
 }
 
-interface PinchPointResponse {
+export interface PinchPointResponse {
   species: string
   bbox: number[]
   topN: number
   pinchPoints: PinchPoint[]
   status?: string
+  methodology?: string
 }
 
 export async function fetchPinchPoints(
   species: string,
   bbox: string,
   topN = 8,
-): Promise<PinchPoint[]> {
-  const data = await getJson<PinchPointResponse>('/api/pinch-points', { species, bbox, topN })
-  return data.pinchPoints ?? []
+): Promise<PinchPointResponse> {
+  return getJson<PinchPointResponse>('/api/pinch-points', { species, bbox, topN })
 }

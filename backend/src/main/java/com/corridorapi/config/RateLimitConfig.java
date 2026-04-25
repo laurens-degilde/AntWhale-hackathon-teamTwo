@@ -13,8 +13,9 @@ public class RateLimitConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(rateLimitInterceptor)
-            .addPathPatterns("/api/**")
-            .excludePathPatterns("/api/health", "/api/docs");
+        // Rate limiting disabled for now. Re-enable by re-registering rateLimitInterceptor:
+        //   registry.addInterceptor(rateLimitInterceptor)
+        //       .addPathPatterns("/api/**")
+        //       .excludePathPatterns("/api/health", "/api/docs");
     }
 }

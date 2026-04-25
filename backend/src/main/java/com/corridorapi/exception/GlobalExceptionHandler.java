@@ -51,9 +51,23 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(WebClientRequestException.class)
     public ResponseEntity<Map<String, Object>> handleUpstreamConnect(WebClientRequestException ex) {
-        log.warn("Upstream connection failed: {}", ex.getMessage());
+        String detail = describe(ex);
+        log.warn("Upstream connection failed: {}", detail, ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-            .body(body("upstream_unreachable: " + ex.getMessage(), 502));
+            .body(body("upstream_unreachable: " + detail, 502));
+    }
+
+    /**
+     * Walk the cause chain and produce a non-null human description. WebClientRequestException
+     * frequently arrives with a null message (timeouts, resets) and the real signal is in cause.
+     */
+    private static String describe(Throwable t) {
+        if (t == null) return "unknown";
+        String msg = t.getMessage();
+        if (msg != null && !msg.isBlank()) return t.getClass().getSimpleName() + ": " + msg;
+        Throwable cause = t.getCause();
+        if (cause != null && cause != t) return t.getClass().getSimpleName() + " caused by " + describe(cause);
+        return t.getClass().getSimpleName();
     }
 
     @ExceptionHandler({IllegalArgumentException.class,

@@ -125,7 +125,7 @@ curl -s -X POST localhost:8080/api/change-detection \
 | `external.copernicus.base-url` | `https://land.copernicus.eu/api` | currently stub |
 | `external.overpass.base-url` | `https://overpass-api.de/api/interpreter` | open, fair-use |
 | `external.rijkswaterstaat.base-url` | `https://geo.rijkswaterstaat.nl` | currently stub |
-| `ratelimit.requests-per-minute` | `10` | per IP, all `/api/**` except health/docs |
+| `ratelimit.requests-per-minute` | `10` | currently disabled in `RateLimitConfig`; setting kept for when it's re-enabled |
 | `webclient.max-in-memory-size-bytes` | `16777216` | for Overpass payloads |
 | `webclient.connect-timeout-ms` / `response-timeout-ms` | `10000` / `30000` | |
 | `server.port` | `8080` | |

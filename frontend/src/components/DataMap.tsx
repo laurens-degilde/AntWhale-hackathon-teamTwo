@@ -12,9 +12,9 @@ import roadkillPng from '../assets/roadkill.png'
 import toolboxPng from '../assets/toolbox.png'
 import pawsPng from '../assets/paws.png'
 import { fetchEcoducts, type Ecoduct } from '../api/ecoducts'
-import { bboxToCircle, fetchInaturalist } from '../api/occurrences'
-import { fetchRoadkills } from '../api/roadkills'
-import { fetchPinchPoints, type PinchPoint } from '../api/pinchPoints'
+import { fetchInaturalistByPlace } from '../api/occurrences'
+import { fetchGbifRoadkills } from '../api/roadkills'
+import { fetchPinchPoints } from '../api/pinchPoints'
 import { fetchConnectivity, gridToCanvas } from '../api/connectivity'
 import { fetchHabitatPatches, type HabitatPatch } from '../api/habitatPatches'
 import { SPECIES, type Species } from '../api/technicalReport'
@@ -265,6 +265,8 @@ export function DataMap(props: Props) {
   const [error,           setError]          = useState<string | null>(null)
   const [isDrawing,       setIsDrawing]      = useState(false)
   const [loadingCircuit,  setLoadingCircuit] = useState(false)
+  const [loadingPinch,    setLoadingPinch]    = useState(false)
+  const [pendingCorner,   setPendingCorner]   = useState<[number, number] | null>(null)
 
   const speciesLatin = useMemo(() => SPECIES.find(s => s.value === species)?.latin ?? '', [species])
   const speciesLabel = useMemo(() => SPECIES.find(s => s.value === species)?.label ?? species, [species])
@@ -647,6 +649,8 @@ export function DataMap(props: Props) {
   }, [mapReady, layers])
 
   // ── fetch occurrences ────────────────────────────────────────────────────
+  // Always NL-wide via iNat place_id (7506); bbox is for corridor analysis, not
+  // for narrowing context overlays. Matches the roadkill behaviour.
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady || !speciesLatin) return
@@ -654,7 +658,7 @@ export function DataMap(props: Props) {
     const timer = setTimeout(() => {
       const target = bbox ? bboxToCircle(bbox) : viewportCircle(m)
       if (!target || cancelled) return
-      fetchInaturalist(speciesLatin, target.center, target.radiusKm, 80)
+      fetchInaturalistByPlace(speciesLatin, 7506, 80)
         .then(res => {
           if (cancelled) return
           const feats = res.results.filter(o => o.location)
@@ -667,15 +671,17 @@ export function DataMap(props: Props) {
     return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, species, speciesLatin, speciesLabel, bbox, onCounts])
 
-  // ── fetch roadkills ──────────────────────────────────────────────────────
+  // ── fetch roadkills from GBIF ─────────────────────────────────────────────
+  // Roadkills are NL-wide context for spotting pinch-point clusters; we don't narrow
+  // them to the selected bbox (otherwise they disappear when you zoom into a small area).
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
-      const effectiveBbox = bbox ?? viewportBbox(m)
-      fetchRoadkills(effectiveBbox, 200)
+      // const effectiveBbox = bbox ?? viewportBbox(m)
+      fetchGbifRoadkills(null, 300)
         .then(({ total, points }) => {
           if (cancelled) return
           const feats = points.map(p => pointFeature(p.lng, p.lat, { id: p.id, date: p.date ?? '', species: p.species ?? '' }))
@@ -691,22 +697,42 @@ export function DataMap(props: Props) {
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
+    if (!bbox) {
+      ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(emptyFc())
+      onCounts(prev => ({ ...prev, pinch: 0 }))
+      return
+    }
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
-      const effectiveBbox = bbox ?? viewportBbox(m)
-      fetchPinchPoints(species, effectiveBbox, 8)
-        .then((pps: PinchPoint[]) => {
-          if (cancelled) return
-          const feats = pps.filter(p => p.location)
-            .map(p => pointFeature(p.location.lng, p.location.lat, {
-              id: p.id, score: p.bottleneckScore ?? 0,
-              cover: p.dominantLandCoverAtPoint ?? '',
-              between: Array.isArray(p.betweenPatches) ? p.betweenPatches.join(' ↔ ') : (p.betweenPatches ?? ''),
-            }))
-          ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-        })
-        .catch((err: Error) => setError(err.message))
+      setLoadingPinch(true)
+      fetchPinchPoints(species, bbox, 8)
+          .then(resp => {
+            if (cancelled) return
+            const effectiveBbox = bbox ?? viewportBbox(m)
+            fetchPinchPoints(species, effectiveBbox, 8)
+            const pps = resp.pinchPoints ?? []
+            const feats = pps.filter(p => p.location)
+                .map(p => pointFeature(p.location.lng, p.location.lat, {
+                  id: p.id, score: p.bottleneckScore ?? 0,
+                  cover: p.dominantLandCoverAtPoint ?? '',
+                  between: Array.isArray(p.betweenPatches) ? p.betweenPatches.join(' ↔ ') : (p.betweenPatches ?? ''),
+                  coords: `${p.location.lat.toFixed(4)}, ${p.location.lng.toFixed(4)}`,
+                }))
+            ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+            onCounts(prev => ({...prev, pinch: feats.length}))
+            if (feats.length === 0) {
+              if (resp.status === 'INSUFFICIENT_HABITAT') {
+                setError('No bottlenecks: this area has too little ' + species + ' habitat. Pick a larger region or a species with broader range.')
+              } else {
+                setError('No bottlenecks above threshold in this area. Try a larger bbox.')
+              }
+            }
+          })
+          .catch((err: Error) => setError(err.message))
+          .finally(() => {
+            if (!cancelled) setLoadingPinch(false)
+          })
     }, 800)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, species, bbox])
@@ -745,6 +771,10 @@ export function DataMap(props: Props) {
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
+    if (!bbox) {
+      ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(emptyFc())
+      return
+    }
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
@@ -930,21 +960,20 @@ export function DataMap(props: Props) {
         )}
       </div>
 
-      {/* circuit loading indicator */}
-      {loadingCircuit && (
+      {/* loading spinner — centered over the map while pinch / connectivity solve runs */}
+      {(loadingCircuit || loadingPinch) && (
         <div style={{
-          position: 'absolute', top: 16, right: 60, zIndex: 10,
-          background: 'rgba(240,238,230,0.97)', backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(0,0,0,0.09)', borderRadius: '2px',
-          padding: '7px 16px', pointerEvents: 'none',
-          fontFamily: "'DM Sans', sans-serif", fontSize: '0.72rem', fontWeight: 500, color: '#2a4020',
-          boxShadow: '0 2px 12px rgba(26,40,24,0.1)',
-          display: 'flex', alignItems: 'center', gap: '7px',
+          position: 'absolute', inset: 0, zIndex: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
         }}>
-          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-            background: '#2a4020', animation: 'wcPulse 1s ease-in-out infinite' }} />
-          Running circuit analysis…
-          <style>{`@keyframes wcPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }`}</style>
+          <div style={{
+            width: 48, height: 48, borderRadius: '50%',
+            border: '4px solid rgba(0,0,0,0.12)',
+            borderTopColor: '#ec4899',
+            animation: 'wcSpin 0.8s linear infinite',
+          }} />
+          <style>{`@keyframes wcSpin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
 
@@ -963,14 +992,3 @@ export function DataMap(props: Props) {
   )
 }
 
-function viewportCircle(m: maplibregl.Map) {
-  const c = m.getCenter(), b = m.getBounds()
-  const dLat = (b.getNorth() - b.getSouth()) * 111
-  const dLng = (b.getEast() - b.getWest()) * 111 * Math.cos(c.lat * Math.PI / 180)
-  return { center: { lat: c.lat, lng: c.lng }, radiusKm: Math.round(Math.min(50, Math.max(2, 0.5 * Math.sqrt(dLat*dLat + dLng*dLng))) * 10) / 10 }
-}
-
-function viewportBbox(m: maplibregl.Map): string {
-  const b = m.getBounds()
-  return `${b.getWest().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getNorth().toFixed(3)}`
-}

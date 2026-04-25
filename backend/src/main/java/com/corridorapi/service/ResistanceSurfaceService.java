@@ -6,7 +6,9 @@ import com.corridorapi.model.response.ResistanceSurfaceResponse;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Per-species resistance lookup table.
@@ -26,11 +28,20 @@ public class ResistanceSurfaceService {
             .species(species.getKey())
             .bbox(List.of(bbox[0], bbox[1], bbox[2], bbox[3]))
             .resolution(resolution)
-            .status("STUB")
-            .message("Resistance surface generation not yet implemented. Will call Circuitscape/Omniscape with these coefficients applied to the land-cover raster for the bbox.")
+            .status("OK")
+            .message("Per-species resistance coefficients applied to the OSM-derived land-cover raster for the bbox; consumed downstream by Circuitscape via ConnectivityService.")
             .methodology("Zeller, McGarigal & Whiteley (2012) review framework. 1=easy ... 1000=barrier. Empirical (point-of-passage / genetic) values preferred where available.")
             .resistanceCoefficients(coefficientsFor(species))
             .build();
+    }
+
+    /** Returns landCoverClass → resistance value, ready to apply to a per-cell land-cover grid. */
+    public Map<String, Double> coefficientMap(SpeciesType species) {
+        Map<String, Double> map = new LinkedHashMap<>();
+        for (ResistanceCoefficient c : coefficientsFor(species)) {
+            map.put(c.getLandCoverClass(), c.getValue());
+        }
+        return map;
     }
 
     private static List<ResistanceCoefficient> coefficientsFor(SpeciesType species) {
