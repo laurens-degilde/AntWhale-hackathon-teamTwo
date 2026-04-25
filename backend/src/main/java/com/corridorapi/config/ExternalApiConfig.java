@@ -16,6 +16,7 @@ public class ExternalApiConfig {
     private Copernicus copernicus = new Copernicus();
     private Overpass overpass = new Overpass();
     private Rijkswaterstaat rijkswaterstaat = new Rijkswaterstaat();
+    private Solvimon solvimon = new Solvimon();
 
     @Getter
     @Setter
@@ -45,5 +46,12 @@ public class ExternalApiConfig {
     @Setter
     public static class Rijkswaterstaat {
         private String baseUrl;
+    }
+
+    @Getter
+    @Setter
+    public static class Solvimon {
+        private String baseUrl;
+        private String apiKey;
     }
 }

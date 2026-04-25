@@ -182,3 +182,139 @@
     border-right-color: var(--border);
   }
 }
+
+.donation-form,
+.donation-success {
+  width: min(440px, 100%);
+  margin: 32px auto;
+  padding: 28px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.donation-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.donation-form input,
+.donation-form textarea {
+  font: inherit;
+  font-size: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  resize: vertical;
+}
+
+.donation-form input:focus,
+.donation-form textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.donation-optional {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.donation-lede {
+  color: var(--text);
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.donation-error {
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.08);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.donation-submit {
+  font: inherit;
+  font-weight: 500;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+.donation-submit:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.donation-fineprint {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.donation-success h2 {
+  margin-bottom: 4px;
+}
+
+.donation-demo-banner {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--text-h);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.donation-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 14px;
+  margin: 0;
+}
+
+.donation-meta dt {
+  color: var(--text);
+}
+
+.donation-meta dd {
+  margin: 0;
+  color: var(--text-h);
+  font-family: var(--mono);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.donation-link {
+  align-self: flex-start;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.donation-link:hover {
+  text-decoration: underline;
+}
+
+.donation-another {
+  font: inherit;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-h);
+  cursor: pointer;
+  align-self: flex-start;
+}

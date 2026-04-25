@@ -77,4 +77,17 @@ public class WebClientConfig {
             .baseUrl(external.getRijkswaterstaat().getBaseUrl())
             .build();
     }
+
+    @Bean
+    public WebClient solvimonWebClient() {
+        WebClient.Builder b = baseBuilder()
+            .baseUrl(external.getSolvimon().getBaseUrl())
+            .defaultHeader(HttpHeaders.ACCEPT, "application/json, text/event-stream")
+            .defaultHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        String apiKey = external.getSolvimon().getApiKey();
+        if (apiKey != null && !apiKey.isBlank()) {
+            b.defaultHeader("X-API-KEY", apiKey);
+        }
+        return b.build();
+    }
 }
