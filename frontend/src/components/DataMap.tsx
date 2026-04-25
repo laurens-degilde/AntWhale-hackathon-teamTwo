@@ -737,8 +737,8 @@ export function DataMap(props: Props) {
         })
         .catch((err: Error) => setError(err.message))
     }, 600)
-    return () => { cancelled = true; clearTimeout(timer) }
-  }, [mapReady, bbox, onCounts])
+      return () => { cancelled = true; clearTimeout(timer) }
+  }, [mapReady, onCounts])
 
   // ── fetch pinch points ───────────────────────────────────────────────────
   useEffect(() => {
