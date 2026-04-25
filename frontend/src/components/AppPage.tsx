@@ -26,6 +26,36 @@ const LAYER_META: { key: LayerKey; label: string; color: string }[] = [
   { key: "pinch", label: "Pinch pts", color: "#8e44ad" },
 ];
 
+async function geocode(
+  query: string,
+): Promise<{ lat: number; lng: number; zoom: number } | null> {
+  // Try coordinate patterns: "lat, lng" or "lat lng"
+  const coordMatch = query
+    .trim()
+    .match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+  if (coordMatch) {
+    const a = parseFloat(coordMatch[1]);
+    const b = parseFloat(coordMatch[2]);
+    if (!isNaN(a) && !isNaN(b)) {
+      const [lat, lng] =
+        Math.abs(a) <= 90 && Math.abs(b) <= 180 ? [a, b] : [b, a];
+      return { lat, lng, zoom: 13 };
+    }
+  }
+  // Nominatim
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+    { headers: { "Accept-Language": "en" } },
+  );
+  const data = await res.json();
+  if (!data.length) return null;
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+    zoom: 12,
+  };
+}
+
 export default function AppPage() {
   const navigate = useNavigate();
   const [species, setSpecies] = useState<Species>("badger");
@@ -42,6 +72,15 @@ export default function AppPage() {
     pinch: 0,
   });
   const [reportOpen, setReportOpen] = useState(false);
+  const [flyTo, setFlyTo] = useState<{
+    lat: number;
+    lng: number;
+    zoom: number;
+    _seq: number;
+  } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const onLayerToggle = useCallback((key: LayerKey) => {
     setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -54,251 +93,272 @@ export default function AppPage() {
     [],
   );
 
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    setSearchLoading(true);
+    setSearchError(null);
+    try {
+      const result = await geocode(searchQuery);
+      if (!result) {
+        setSearchError("Location not found");
+      } else {
+        setFlyTo({ ...result, _seq: Date.now() });
+      }
+    } catch {
+      setSearchError("Search failed");
+    }
+    setSearchLoading(false);
+  }
+
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
         background: "#0d1208",
-        display: "flex",
-        flexDirection: "column",
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
-      {/* ── Top bar ── */}
-      <header
+      {/* ── Map fills everything ── */}
+      <DataMap
+        species={species}
+        bbox={bbox}
+        layers={layers}
+        flyTo={flyTo}
+        onSpeciesChange={setSpecies}
+        onBboxChange={setBbox}
+        onLayerToggle={onLayerToggle}
+        onCounts={onCounts}
+        onRequestPlan={() => setReportOpen(true)}
+      />
+
+      {/* ── Floating top-left: back / brand ── */}
+      <button
+        onClick={() => navigate("/")}
         style={{
-          position: "relative",
-          zIndex: 10,
-          flexShrink: 0,
-          height: "58px",
-          background: "#111a10",
-          borderBottom: "1px solid rgba(240,238,230,0.07)",
+          position: "absolute",
+          top: 16,
+          left: 16,
+          zIndex: 20,
+          background: "rgba(13,18,8,0.78)",
+          backdropFilter: "blur(14px)",
+          border: "1px solid rgba(240,238,230,0.1)",
+          borderRadius: "8px",
+          cursor: "pointer",
+          padding: "9px 14px",
           display: "flex",
           alignItems: "center",
-          padding: "0 20px",
-          gap: "24px",
-          overflow: "hidden",
+          gap: "8px",
+          transition: "background 0.2s",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(26,40,24,0.92)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(13,18,8,0.78)";
         }}
       >
-        {/* Decorative trees — left edge */}
-        <div
+        <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+          <path
+            d="M9 1.5 L9 1.5 C9 1.5 2.5 5.5 2.5 11 C2.5 14.6 5.4 17.5 9 17.5 C12.6 17.5 15.5 14.6 15.5 11 C15.5 5.5 9 1.5 9 1.5Z"
+            stroke="#4a9e5c"
+            strokeWidth="1.3"
+            fill="rgba(74,158,92,0.12)"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span
           style={{
-            position: "absolute",
-            left: 0,
-            bottom: 0,
-            display: "flex",
-            alignItems: "flex-end",
-            pointerEvents: "none",
-            zIndex: 0,
+            fontFamily:
+              "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "#f0eee6",
           }}
         >
-          <img
-            src={tree3Png}
-            alt=""
-            style={{
-              height: "46px",
-              width: "auto",
-              opacity: 0.18,
-              filter: "brightness(0.6)",
-            }}
-          />
-          <img
-            src={tree1Png}
-            alt=""
-            style={{
-              height: "52px",
-              width: "auto",
-              opacity: 0.22,
-              filter: "brightness(0.55)",
-              marginLeft: "-8px",
-            }}
-          />
-          <img
-            src={tree2Png}
-            alt=""
-            style={{
-              height: "38px",
-              width: "auto",
-              opacity: 0.14,
-              filter: "brightness(0.6)",
-              marginLeft: "-6px",
-            }}
-          />
-        </div>
+          Wildcross
+        </span>
+        <span
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: "0.5rem",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "rgba(240,238,230,0.3)",
+          }}
+        >
+          ← back
+        </span>
+      </button>
 
-        {/* Decorative trees — right edge (mirrored) */}
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            bottom: 0,
-            display: "flex",
-            alignItems: "flex-end",
-            pointerEvents: "none",
-            zIndex: 0,
-            transform: "scaleX(-1)",
-          }}
-        >
-          <img
-            src={tree2Png}
-            alt=""
+      {/* ── Floating search bar (top-center) ── */}
+      <form
+        onSubmit={handleSearch}
+        style={{
+          position: "absolute",
+          top: 16,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 20,
+          width: "min(500px, calc(100vw - 300px))",
+        }}
+      >
+        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          {/* Search icon */}
+          <svg
             style={{
-              height: "44px",
-              width: "auto",
-              opacity: 0.16,
-              filter: "brightness(0.6)",
+              position: "absolute",
+              left: 13,
+              pointerEvents: "none",
+              opacity: searchLoading ? 0 : 1,
+              transition: "opacity 0.2s",
+              flexShrink: 0,
             }}
-          />
-          <img
-            src={tree3Png}
-            alt=""
-            style={{
-              height: "54px",
-              width: "auto",
-              opacity: 0.2,
-              filter: "brightness(0.55)",
-              marginLeft: "-8px",
-            }}
-          />
-          <img
-            src={tree1Png}
-            alt=""
-            style={{
-              height: "36px",
-              width: "auto",
-              opacity: 0.13,
-              filter: "brightness(0.6)",
-              marginLeft: "-6px",
-            }}
-          />
-        </div>
-
-        {/* Brand / back */}
-        <button
-          onClick={() => navigate("/")}
-          style={{
-            position: "relative",
-            zIndex: 1,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            flexShrink: 0,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+            width="14"
+            height="14"
+            viewBox="0 0 20 20"
+            fill="none"
+          >
+            <circle
+              cx="8.5"
+              cy="8.5"
+              r="5.5"
+              stroke="rgba(240,238,230,0.4)"
+              strokeWidth="1.6"
+            />
             <path
-              d="M9 1.5 L9 1.5 C9 1.5 2.5 5.5 2.5 11 C2.5 14.6 5.4 17.5 9 17.5 C12.6 17.5 15.5 14.6 15.5 11 C15.5 5.5 9 1.5 9 1.5Z"
-              stroke="#4a9e5c"
-              strokeWidth="1.3"
-              fill="rgba(74,158,92,0.12)"
-              strokeLinejoin="round"
+              d="M13 13 L17 17"
+              stroke="rgba(240,238,230,0.4)"
+              strokeWidth="1.6"
+              strokeLinecap="round"
             />
           </svg>
-          <span
-            style={{
-              fontFamily:
-                "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-              fontSize: "0.8rem",
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "#f0eee6",
+
+          {/* Loading spinner */}
+          {searchLoading && (
+            <div
+              style={{
+                position: "absolute",
+                left: 13,
+                width: 14,
+                height: 14,
+                border: "1.5px solid rgba(240,238,230,0.15)",
+                borderTopColor: "#4a9e5c",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+                flexShrink: 0,
+              }}
+            />
+          )}
+
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSearchError(null);
             }}
-          >
-            Wildcross
-          </span>
-          <span
+            placeholder="Search location, city, or coordinates…"
             style={{
+              width: "100%",
+              padding: "10px 72px 10px 38px",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "0.82rem",
+              color: "#f0eee6",
+              background: "rgba(13,18,8,0.84)",
+              backdropFilter: "blur(18px)",
+              border: searchError
+                ? "1px solid rgba(192,57,43,0.55)"
+                : "1px solid rgba(240,238,230,0.12)",
+              borderRadius: "8px",
+              outline: "none",
+              boxSizing: "border-box",
+              boxShadow: "0 4px 28px rgba(0,0,0,0.35)",
+              transition: "border-color 0.2s, box-shadow 0.2s",
+            }}
+            onFocus={(e) => {
+              if (!searchError)
+                e.target.style.borderColor = "rgba(74,158,92,0.45)";
+              e.target.style.boxShadow =
+                "0 4px 28px rgba(0,0,0,0.35), 0 0 0 3px rgba(74,158,92,0.1)";
+            }}
+            onBlur={(e) => {
+              if (!searchError)
+                e.target.style.borderColor = "rgba(240,238,230,0.12)";
+              e.target.style.boxShadow = "0 4px 28px rgba(0,0,0,0.35)";
+            }}
+          />
+
+          <button
+            type="submit"
+            disabled={searchLoading}
+            style={{
+              position: "absolute",
+              right: 6,
+              padding: "5px 12px",
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: "0.52rem",
               letterSpacing: "0.1em",
               textTransform: "uppercase",
-              color: "rgba(240,238,230,0.28)",
-              marginLeft: "2px",
+              color: "#1a2818",
+              background: searchLoading ? "rgba(74,158,92,0.4)" : "#4a9e5c",
+              border: "none",
+              borderRadius: "5px",
+              cursor: searchLoading ? "not-allowed" : "pointer",
+              transition: "background 0.2s",
             }}
           >
-            ← back
-          </span>
-        </button>
-
-        {/* Divider */}
-        <div
-          style={{
-            width: "1px",
-            height: "20px",
-            background: "rgba(240,238,230,0.1)",
-            flexShrink: 0,
-            position: "relative",
-            zIndex: 1,
-          }}
-        />
-
-        {/* Layer toggles */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          {LAYER_META.map(({ key, label, color }) => (
-            <button
-              key={key}
-              onClick={() => onLayerToggle(key)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "3px 9px",
-                borderRadius: "2px",
-                cursor: "pointer",
-                border: `1px solid ${layers[key] ? color + "80" : "rgba(240,238,230,0.1)"}`,
-                background: layers[key] ? color + "18" : "transparent",
-                transition: "all 0.2s",
-              }}
-            >
-              <span
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  background: layers[key] ? color : "rgba(240,238,230,0.18)",
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: "0.55rem",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: layers[key] ? "#f0eee6" : "rgba(240,238,230,0.28)",
-                }}
-              >
-                {label}
-              </span>
-            </button>
-          ))}
+            Go
+          </button>
         </div>
 
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
+        {searchError && (
+          <div
+            style={{
+              marginTop: 6,
+              padding: "6px 12px",
+              background: "rgba(192,57,43,0.14)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(192,57,43,0.25)",
+              borderRadius: "6px",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "0.72rem",
+              color: "#e07060",
+            }}
+          >
+            {searchError}
+          </div>
+        )}
+      </form>
 
-        {/* Live counts */}
+      {/* ── Floating top-right: live counts + generate report ── */}
+      <div
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 20,
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+        }}
+      >
+        {/* Live counts pill */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "18px",
-            position: "relative",
-            zIndex: 1,
+            gap: "14px",
+            background: "rgba(13,18,8,0.78)",
+            backdropFilter: "blur(14px)",
+            border: "1px solid rgba(240,238,230,0.1)",
+            borderRadius: "8px",
+            padding: "8px 16px",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
           }}
         >
           {[
@@ -310,7 +370,7 @@ export default function AppPage() {
               <div
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: "0.9rem",
+                  fontSize: "0.88rem",
                   fontWeight: 700,
                   color: "#f0eee6",
                 }}
@@ -320,7 +380,7 @@ export default function AppPage() {
               <div
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: "0.48rem",
+                  fontSize: "0.44rem",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
                   color,
@@ -333,38 +393,25 @@ export default function AppPage() {
           ))}
         </div>
 
-        {/* Divider */}
-        <div
-          style={{
-            width: "1px",
-            height: "20px",
-            background: "rgba(240,238,230,0.1)",
-            flexShrink: 0,
-            position: "relative",
-            zIndex: 1,
-          }}
-        />
-
-        {/* Generate report CTA */}
+        {/* Generate Report */}
         <button
           onClick={() => setReportOpen(true)}
           style={{
-            position: "relative",
-            zIndex: 1,
             fontFamily:
               "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-            fontSize: "0.65rem",
+            fontSize: "0.62rem",
             fontWeight: 700,
-            letterSpacing: "0.16em",
+            letterSpacing: "0.15em",
             textTransform: "uppercase",
             color: "#1a2818",
             background: "#f0eee6",
             border: "none",
-            borderRadius: "2px",
-            padding: "8px 16px",
+            borderRadius: "8px",
+            padding: "10px 16px",
             cursor: "pointer",
             transition: "background 0.2s, transform 0.15s",
-            flexShrink: 0,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            whiteSpace: "nowrap",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#fff";
@@ -377,20 +424,64 @@ export default function AppPage() {
         >
           Generate Report ↗
         </button>
-      </header>
+      </div>
 
-      {/* ── Map fills remaining space ── */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-        <DataMap
-          species={species}
-          bbox={bbox}
-          layers={layers}
-          onSpeciesChange={setSpecies}
-          onBboxChange={setBbox}
-          onLayerToggle={onLayerToggle}
-          onCounts={onCounts}
-          onRequestPlan={() => setReportOpen(true)}
-        />
+      {/* ── Floating bottom-left: layer toggles ── */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 32,
+          left: 16,
+          zIndex: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: "5px",
+        }}
+      >
+        {LAYER_META.map(({ key, label, color }) => (
+          <button
+            key={key}
+            onClick={() => onLayerToggle(key)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "6px 12px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              border: `1px solid ${layers[key] ? color + "70" : "rgba(240,238,230,0.08)"}`,
+              background: layers[key]
+                ? "rgba(13,18,8,0.82)"
+                : "rgba(13,18,8,0.5)",
+              backdropFilter: "blur(14px)",
+              transition: "all 0.2s",
+              boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
+            }}
+          >
+            <span
+              style={{
+                width: "7px",
+                height: "7px",
+                borderRadius: "50%",
+                flexShrink: 0,
+                background: layers[key] ? color : "rgba(240,238,230,0.18)",
+                boxShadow: layers[key] ? `0 0 6px ${color}80` : "none",
+                transition: "all 0.2s",
+              }}
+            />
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: "0.52rem",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: layers[key] ? "#f0eee6" : "rgba(240,238,230,0.28)",
+              }}
+            >
+              {label}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* ── Report slide-up panel ── */}
@@ -438,7 +529,6 @@ export default function AppPage() {
                 flexShrink: 0,
               }}
             >
-              {/* trees left */}
               {[
                 { src: tree3Png, left: "-10px", h: "80px", op: 0.35 },
                 { src: tree1Png, left: "30px", h: "90px", op: 0.45 },
@@ -466,7 +556,6 @@ export default function AppPage() {
                   }}
                 />
               ))}
-              {/* trees right (mirrored) */}
               {[
                 { src: tree1Png, right: "-10px", h: "82px", op: 0.35 },
                 { src: tree2Png, right: "28px", h: "72px", op: 0.4 },
@@ -495,7 +584,6 @@ export default function AppPage() {
                   }}
                 />
               ))}
-              {/* fade the forest into beige */}
               <div
                 style={{
                   position: "absolute",
@@ -507,7 +595,6 @@ export default function AppPage() {
                     "linear-gradient(to bottom, transparent, #f0eee6)",
                 }}
               />
-              {/* close button */}
               <button
                 onClick={() => setReportOpen(false)}
                 style={{
@@ -534,7 +621,6 @@ export default function AppPage() {
 
             {/* Content */}
             <div style={{ padding: "40px 64px 64px" }}>
-              {/* Header */}
               <div style={{ marginBottom: "40px" }}>
                 <div
                   style={{
@@ -602,6 +688,9 @@ export default function AppPage() {
         @keyframes slideUp {
           from { transform: translateY(60px); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>
