@@ -1,6 +1,5 @@
-# Gradle
-.gradle/
-build/
+# Maven
+target/
 
 # Eclipse
 .project
@@ -17,25 +16,16 @@ bin/
 # NetBeans
 nb-configuration.xml
 
-# Visual Studio Code
+# VS Code
 .vscode
 .factorypath
 
-# OSX
+# OS
 .DS_Store
 
 # Vim
 *.swp
 *.swo
 
-# patch
-*.orig
-*.rej
-
 # Local environment
 .env
-
-# Plugin directory
-/.quarkus/cli/plugins/
-# TLS Certificates
-.certs/

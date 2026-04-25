@@ -1,66 +1,176 @@
-# backend
+# corridor-api
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+Wildlife corridor analysis backend — Spring Boot 3 / Java 21 / Maven. Covers
+data assembly, per-species resistance surfaces with peer-reviewed citations,
+connectivity analysis, intervention classification with cost & cost-effectiveness
+ranking, and output generation (GeoPackage manifest, technical report, landowner
+letters, subsidy applications, stakeholder map), plus stateless change detection.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Run locally
 
-## Running the application in dev mode
-
-You can run your application in dev mode that enables live coding using:
-
-```shell script
-./gradlew quarkusDev
+```bash
+mvn spring-boot:run
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+That's it — all live external APIs (iNaturalist, GBIF, Overpass) are public and
+need no auth. The app boots on `http://localhost:8080`.
 
-## Packaging and running the application
+`.env` is auto-loaded by `spring-dotenv` if present (gitignored — see `.env.example`).
 
-The application can be packaged using:
+## What's live vs stub
 
-```shell script
-./gradlew build
+| Endpoint | Status |
+| --- | --- |
+| `/api/health`, `/api/docs` | live |
+| `/api/roadkills` (iNat field:Roadkill=yes) | live |
+| `/api/inaturalist-occurrences` (general iNat) | live |
+| `/api/species-occurrences` (GBIF) | live |
+| `/api/osm-features` (Overpass) | live |
+| `/api/waarneming-roadkills` | **stub** — needs Stichting Observation partner token |
+| `/api/land-cover` (Copernicus) | **stub** — see `// TODO` in `LandCoverService` |
+| `/api/sentinel2-imagery` | **stub** — wire Element 84 STAC `/v1/search` |
+| `/api/brt-bgt` | **stub** — wire PDOK BRT/BGT WFS |
+| `/api/nnn` | **stub** — wire PDOK provincial NNN WFS |
+| `/api/atlas-natuurlijk-kapitaal` | **stub** — wire Atlas raster sampling |
+| `/api/cadastre/parcels` | **stub** — geometry via PDOK; ownership needs BRK 2.0 auth |
+| `/api/ecoducts` | **stub** with curated real Dutch dataset |
+| `/api/resistance-surface` | **stub** — coefficients live, raster generation pending |
+| `/api/habitat-patches` | **stub** |
+| `/api/connectivity` | **stub** — pending Circuitscape orchestration |
+| `/api/pinch-points` | **stub** |
+| `/api/interventions` | **stub** |
+| `/api/outputs/geopackage-manifest` | **stub** |
+| `/api/outputs/technical-report` | **stub** |
+| `/api/outputs/landowner-letters` | **stub** |
+| `/api/outputs/subsidy-applications` | **stub** |
+| `/api/outputs/stakeholder-map` | **stub** |
+| `POST /api/change-detection` | **stub** — fully stateless, takes both snapshots in body |
+
+Per the spec we do **not** generate binary GIS files or PDF/DOCX in this layer —
+output endpoints emit structured JSON contracts that a downstream document
+renderer consumes.
+
+## Endpoints — curl examples
+
+### Liveness + self-doc
+```bash
+curl -s localhost:8080/api/health
+curl -s localhost:8080/api/docs | jq '.endpoints[].path'
 ```
 
-It produces the `quarkus-run.jar` file in the `build/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `build/quarkus-app/lib/` directory.
+### Data assembly
+```bash
+# iNat roadkills (live)
+curl -s 'localhost:8080/api/roadkills?taxonName=Meles%20meles&perPage=20&page=1' | jq
 
-The application is now runnable using `java -jar build/quarkus-app/quarkus-run.jar`.
+# GBIF species occurrences (live)
+curl -s 'localhost:8080/api/species-occurrences?taxonKey=2433875&lat=52.1&lng=5.7&radiusKm=25' | jq
 
-If you want to build an _über-jar_, execute the following command:
+# Plain iNat occurrences (live)
+curl -s 'localhost:8080/api/inaturalist-occurrences?taxonName=Meles%20meles&placeId=7506' | jq
 
-```shell script
-./gradlew build -Dquarkus.package.jar.type=uber-jar
+# OSM via Overpass — note bbox order south,west,north,east (live)
+curl -s 'localhost:8080/api/osm-features?bbox=52.10,5.70,52.20,5.85&featureTypes=roads,waterways,fences' | jq '.featureCount'
+
+# Stubs
+curl -s 'localhost:8080/api/waarneming-roadkills?limit=5' | jq
+curl -s 'localhost:8080/api/land-cover?bbox=5.6,52.0,5.9,52.3' | jq
+curl -s 'localhost:8080/api/sentinel2-imagery?bbox=5.6,52.0,5.9,52.3&dateAfter=2025-09-01&maxCloudCoverPct=15' | jq
+curl -s 'localhost:8080/api/brt-bgt?bbox=5.6,52.0,5.9,52.3&dataset=BGT' | jq
+curl -s 'localhost:8080/api/nnn?province=Gelderland&bbox=5.6,52.0,5.9,52.3' | jq
+curl -s 'localhost:8080/api/atlas-natuurlijk-kapitaal?bbox=5.6,52.0,5.9,52.3' | jq
+curl -s 'localhost:8080/api/cadastre/parcels?bbox=5.6,52.0,5.9,52.3&limit=5' | jq
+curl -s 'localhost:8080/api/ecoducts' | jq '.results[0]'
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar build/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./gradlew build -Dquarkus.native.enabled=true
+### Resistance + connectivity pipeline
+```bash
+curl -s 'localhost:8080/api/resistance-surface?species=badger&bbox=5.6,52.0,5.9,52.3' | jq
+curl -s 'localhost:8080/api/habitat-patches?species=badger&bbox=5.6,52.0,5.9,52.3' | jq
+curl -s 'localhost:8080/api/connectivity?species=badger&bbox=5.6,52.0,5.9,52.3' | jq '.meanCurrentDensity'
+curl -s 'localhost:8080/api/pinch-points?species=badger&bbox=5.6,52.0,5.9,52.3&topN=5' | jq
+curl -s 'localhost:8080/api/interventions?species=badger&bbox=5.6,52.0,5.9,52.3&topN=5' | jq
 ```
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
+### Outputs
+```bash
+curl -s 'localhost:8080/api/outputs/geopackage-manifest?species=badger&bbox=5.6,52.0,5.9,52.3' | jq
+curl -s 'localhost:8080/api/outputs/technical-report?species=badger&bbox=5.6,52.0,5.9,52.3' | jq
+curl -s 'localhost:8080/api/outputs/landowner-letters?species=badger&bbox=5.6,52.0,5.9,52.3' | jq '.letters[0]'
+curl -s 'localhost:8080/api/outputs/subsidy-applications?species=badger&bbox=5.6,52.0,5.9,52.3' | jq '.applications[0]'
+curl -s 'localhost:8080/api/outputs/stakeholder-map?species=badger&bbox=5.6,52.0,5.9,52.3' | jq '.stakeholders[].name'
 ```
 
-You can then execute your native executable with: `./build/backend-1.0.0-SNAPSHOT-runner`
+### Change detection (stateless)
+```bash
+curl -s -X POST localhost:8080/api/change-detection \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "previous": {"takenAt":"2025-01-01T00:00:00Z", "bbox":[5.6,52.0,5.9,52.3],
+                  "landCoverPct":{"forest":12.0,"agricultural_field":35.0},
+                  "roadkillPoints":[{"id":"a","lat":52.1,"lng":5.7,"observedOn":"2024-09-01"}],
+                  "rankedPinchPointIds":["pp-1","pp-2","pp-3"], "osmBuildingCount":1100},
+    "current":  {"takenAt":"2026-04-01T00:00:00Z", "bbox":[5.6,52.0,5.9,52.3],
+                  "landCoverPct":{"forest":11.4,"agricultural_field":34.6},
+                  "roadkillPoints":[{"id":"a","lat":52.1,"lng":5.7,"observedOn":"2024-09-01"},
+                                     {"id":"b","lat":52.2,"lng":5.8,"observedOn":"2025-11-30"}],
+                  "rankedPinchPointIds":["pp-2","pp-1","pp-3"], "osmBuildingCount":1180}
+   }' | jq
+```
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/gradle-tooling>.
+## Env vars / `application.properties` keys
 
-## Related Guides
+| Key | Default | Notes |
+| --- | --- | --- |
+| `external.inaturalist.base-url` | `https://api.inaturalist.org/v1` | open |
+| `external.gbif.base-url` | `https://api.gbif.org/v1` | open |
+| `external.copernicus.base-url` | `https://land.copernicus.eu/api` | currently stub |
+| `external.overpass.base-url` | `https://overpass-api.de/api/interpreter` | open, fair-use |
+| `external.rijkswaterstaat.base-url` | `https://geo.rijkswaterstaat.nl` | currently stub |
+| `ratelimit.requests-per-minute` | `10` | per IP, all `/api/**` except health/docs |
+| `webclient.max-in-memory-size-bytes` | `16777216` | for Overpass payloads |
+| `webclient.connect-timeout-ms` / `response-timeout-ms` | `10000` / `30000` | |
+| `server.port` | `8080` | |
 
-- REST ([guide](https://quarkus.io/guides/rest)): A Jakarta REST implementation utilizing build time processing and Vert.x. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it.
+## Project layout
 
-## Provided Code
+```
+src/main/java/com/corridorapi/
+  CorridorApiApplication.java
+  controller/   - one per endpoint
+  service/      - one per data source / pipeline stage
+  client/       - WebClient logging filter
+  config/       - ExternalApiConfig, WebClientConfig, CorsConfig, RateLimit*
+  model/
+    request/    - POST bodies (ChangeDetectionRequest, RegionSnapshot)
+    response/   - Lombok @Value POJOs returned by controllers
+  exception/    - GlobalExceptionHandler @ControllerAdvice
+  enums/        - SpeciesType, EcoductType, InterventionType, SubsidyScheme,
+                  StakeholderType, HabitatPatchKind
+src/main/resources/
+  application.properties
+  docs.json
+```
 
-### REST
+## Dependency versions
 
-Easily start your REST Web Services
+- Spring Boot **3.3.5** (web, webflux, validation)
+- Java **21**
+- Lombok (Spring-Boot-managed)
+- Bucket4j **8.14.0** (`bucket4j_jdk17-core`)
+- spring-dotenv **4.0.0**
+- Reactor Netty (transitive via webflux)
+- Jackson (transitive via Spring Boot)
 
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+## Notes
+
+- Outbound HTTP is logged with URL, method, status and elapsed ms
+  (`client/WebClientLoggingFilter`).
+- Rate limiting is in-memory per-IP — replace `ConcurrentHashMap` with Redis if
+  the deployment ever runs more than one replica.
+- The Overpass GeoJSON converter handles `node` and `way`; relations are skipped.
+- Resistance coefficients carry per-coefficient citations in
+  `ResistanceSurfaceService.coefficientsFor()` and are emitted as
+  `{landCoverClass, value, citation}` objects on the wire.
+- Stubs all carry inline `// TODO` comments pointing at the live endpoint that
+  would replace them.
