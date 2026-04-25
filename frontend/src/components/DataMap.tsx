@@ -15,7 +15,7 @@ import { fetchEcoducts, type Ecoduct } from '../api/ecoducts'
 import { fetchInaturalistByPlace } from '../api/occurrences'
 import { bboxToCircle, fetchInaturalist } from '../api/occurrences'
 import { fetchGbifRoadkills } from '../api/roadkills'
-import { fetchPinchPoints, type PinchPoint } from '../api/pinchPoints'
+import { fetchPinchPoints } from '../api/pinchPoints'
 import { fetchConnectivity, gridToCanvas } from '../api/connectivity'
 import { fetchHabitatPatches, type HabitatPatch } from '../api/habitatPatches'
 import { SPECIES, type Species } from '../api/technicalReport'
@@ -692,6 +692,8 @@ export function DataMap(props: Props) {
   }, [mapReady, layers])
 
   // ── fetch occurrences ────────────────────────────────────────────────────
+  // Always NL-wide via iNat place_id (7506); bbox is for corridor analysis, not
+  // for narrowing context overlays. Matches the roadkill behaviour.
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady || !speciesLatin) return
@@ -700,14 +702,18 @@ export function DataMap(props: Props) {
       const target = bbox ? bboxToCircle(bbox) : viewportCircle(m)
       if (!target || cancelled) return
       fetchInaturalistByPlace(speciesLatin, 7506, 80)
-        .then(res => {
-          if (cancelled) return
-          const feats = res.results.filter(o => o.location)
-            .map(o => pointFeature(o.location!.lng, o.location!.lat, { id: o.id, date: o.date ?? '', species: speciesLabel }))
-          ;(m.getSource(OCC_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-          onCounts(p => ({ ...p, occurrences: res.total ?? feats.length }))
-        })
-        .catch((err: Error) => setError(err.message))
+          .then(res => {
+            if (cancelled) return
+            const feats = res.results.filter(o => o.location)
+                .map(o => pointFeature(o.location!.lng, o.location!.lat, {
+                  id: o.id,
+                  date: o.date ?? '',
+                  species: speciesLabel
+                }))
+            ;(m.getSource(OCC_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+            onCounts(p => ({...p, occurrences: res.total ?? feats.length}))
+          })
+          .catch((err: Error) => setError(err.message))
     }, 400)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, species, speciesLatin, speciesLabel, bbox, onCounts])
@@ -744,6 +750,7 @@ export function DataMap(props: Props) {
       return
     }
     let cancelled = false
+    setLoadingPinch(true)
     const timer = setTimeout(() => {
       if (cancelled) return
       setLoadingPinch(true)
@@ -812,25 +819,28 @@ export function DataMap(props: Props) {
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
+    if (!bbox) {
+      ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(emptyFc())
+      return
+    }
+    const effectiveBbox = bbox ?? viewportBbox(m)
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
-      const effectiveBbox = bbox ?? viewportBbox(m)
       fetchHabitatPatches(species, effectiveBbox)
-        .then((patches: HabitatPatch[]) => {
-          if (cancelled) return
-          const feats = patches.filter(p => p.centroid)
-            .map(p => pointFeature(p.centroid.lng, p.centroid.lat, {
-              id: p.id, kind: p.kind, areaHa: p.areaHa,
-              quality: p.habitatQuality, cover: p.dominantLandCover,
-              speciesLabel,
-            }))
-          ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-        })
-        .catch((err: Error) => setError(err.message))
+          .then((patches: HabitatPatch[]) => {
+            if (cancelled) return
+            const feats = patches.filter(p => p.centroid)
+                .map(p => pointFeature(p.centroid.lng, p.centroid.lat, {
+                  id: p.id, kind: p.kind, areaHa: p.areaHa,
+                  quality: p.habitatQuality, cover: p.dominantLandCover,
+                }))
+            ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+          })
+          .catch((err: Error) => setError(err.message))
     }, 200)
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [mapReady, species, speciesLabel, bbox])
+  }, [mapReady, species, bbox])
 
   // ── drawing mode: cursor + dragPan ───────────────────────────────────────
   useEffect(() => {
@@ -997,6 +1007,8 @@ export function DataMap(props: Props) {
         )}
       </div>
 
+      {/* loading spinner — centered over the map while pinch / connectivity solve runs */}
+      {(loadingCircuit || loadingPinch) && (
       {/* draw region / clear region buttons */}
       <div style={{
         position: 'absolute', bottom: 32, right: 16, zIndex: 20,
