@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//opt/homebrew/opt/**)",
+      "Read(//Library/Java/JavaVirtualMachines/**)",
+      "Bash(/usr/libexec/java_home -V)"
+    ]
+  }
+}
