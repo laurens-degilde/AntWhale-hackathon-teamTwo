@@ -24,11 +24,15 @@ interface Props {
   bbox: string | null
   layers: { ecoducts: boolean; occurrences: boolean; roadkill: boolean; pinch: boolean; connectivity: boolean; patches: boolean }
   flyTo?: { lat: number; lng: number; zoom: number; _seq: number } | null
+  connectivityOpacity?: number
   onSpeciesChange: (s: Species) => void
   onBboxChange: (b: string | null) => void
   onLayerToggle: (key: keyof Props['layers']) => void
   onCounts: (counts: { occurrences: number; roadkill: number; pinch: number } | ((prev: { occurrences: number; roadkill: number; pinch: number }) => { occurrences: number; roadkill: number; pinch: number })) => void
   onRequestPlan: () => void
+  reportMode?: boolean
+  userReports?: Array<{ id: string; rtype: string; lat: number; lng: number; species: string }>
+  onMapClick?: (lat: number, lng: number) => void
 }
 
 interface PointFeature {
@@ -44,6 +48,7 @@ const PINCH_SRC        = 'src-pinch'
 const BBOX_SRC         = 'src-bbox'
 const PATCHES_SRC      = 'src-patches'
 const CONNECTIVITY_SRC = 'src-connectivity'
+const REPORTS_SRC      = 'src-user-reports'
 
 const NL_CENTER: [number, number] = [5.29, 52.13]
 const BLANK_PNG = (() => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; return c.toDataURL() })()
@@ -254,6 +259,8 @@ export function DataMap(props: Props) {
   const onBboxChangeRef  = useRef(onBboxChange)
   const isDrawingRef     = useRef(false)
   const drawStartRef     = useRef<[number, number] | null>(null)
+  const reportModeRef    = useRef(false)
+  const onMapClickRef    = useRef<((lat: number, lng: number) => void) | undefined>(undefined)
   const [mapReady,        setMapReady]       = useState(false)
   const [error,           setError]          = useState<string | null>(null)
   const [isDrawing,       setIsDrawing]      = useState(false)
@@ -264,6 +271,8 @@ export function DataMap(props: Props) {
 
   useEffect(() => { onBboxChangeRef.current = onBboxChange }, [onBboxChange])
   useEffect(() => { isDrawingRef.current = isDrawing }, [isDrawing])
+  useEffect(() => { reportModeRef.current = !!props.reportMode }, [props.reportMode])
+  useEffect(() => { onMapClickRef.current = props.onMapClick }, [props.onMapClick])
 
   // ── init map ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -304,10 +313,28 @@ export function DataMap(props: Props) {
         type: 'image', url: BLANK_PNG,
         coordinates: [[3.2,53.6],[7.2,53.6],[7.2,50.7],[3.2,50.7]],
       })
+      m.addSource(REPORTS_SRC, { type: 'geojson', data: emptyFc() })
 
       // ── connectivity heatmap ──
       m.addLayer({ id: 'lyr-connectivity', type: 'raster', source: CONNECTIVITY_SRC,
         paint: { 'raster-opacity': 0.70, 'raster-resampling': 'linear' } })
+
+      // ── user reports ──
+      m.addLayer({
+        id: 'lyr-user-reports', type: 'circle', source: REPORTS_SRC,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 6, 12, 10],
+          'circle-color': ['case',
+            ['==', ['get', 'rtype'], 'roadkill'], '#c0392b',
+            ['==', ['get', 'rtype'], 'crossing'], '#4a9e5c',
+            '#B87830',
+          ],
+          'circle-opacity': 0.92,
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#f0eee6',
+          'circle-stroke-opacity': 1,
+        },
+      })
 
       // ── bbox ──
       m.addLayer({ id: 'lyr-bbox-fill', type: 'fill', source: BBOX_SRC,
@@ -488,9 +515,20 @@ export function DataMap(props: Props) {
         ).then(zoom => { m.easeTo({ center: [lng, lat], zoom: zoom + 0.5 }) })
       })
 
+      // ── report mode click ─────────────────────────────────────────────────
+      m.on('click', (e: MapMouseEvent) => {
+        if (!reportModeRef.current) return
+        const blocked = m.queryRenderedFeatures(e.point, {
+          layers: ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
+        })
+        if (blocked.length > 0) return
+        onMapClickRef.current?.(e.lngLat.lat, e.lngLat.lng)
+      })
+
       // ── drag-to-draw bbox ─────────────────────────────────────────────────
       m.on('mousedown', (e: MapMouseEvent) => {
         if (!isDrawingRef.current) return
+        if (reportModeRef.current) return
         const blocked = m.queryRenderedFeatures(e.point, {
           layers: ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
         })
@@ -521,9 +559,27 @@ export function DataMap(props: Props) {
         }
       })
 
+      // ── user report hover tooltips ────────────────────────────────────────
+      m.on('mousemove', 'lyr-user-reports', (e) => {
+        const f = e.features?.[0]; if (!f) return
+        const p = f.properties as Record<string, string>
+        const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
+        const typeMap: Record<string,string> = { roadkill: 'Road-kill report', crossing: 'New crossing', observation: 'Observation' }
+        const colorMap: Record<string,string> = { roadkill: '#7C5A3C', crossing: '#2a4020', observation: '#B87830' }
+        const c = colorMap[p.rtype] ?? '#2a4020'
+        hoverPop.setLngLat([lng, lat]).setHTML(
+          `<div style="font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:9px;padding:2px 0">` +
+          `<div>` +
+          `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:11px;font-weight:700;color:${c};text-transform:uppercase;letter-spacing:0.06em">${typeMap[p.rtype] ?? 'Community report'}</div>` +
+          `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;color:rgba(0,0,0,0.4);margin-top:2px;letter-spacing:0.05em">Community · ${p.species && p.species !== 'unknown' ? p.species : 'Species unknown'}</div>` +
+          `</div></div>`
+        ).addTo(m)
+      })
+      m.on('mouseleave', 'lyr-user-reports', () => hoverPop.remove())
+
       // ── cursors ───────────────────────────────────────────────────────────
       const pointerLayers = ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences',
-                             'lyr-rk-skull','lyr-occ-cluster']
+                             'lyr-rk-skull','lyr-occ-cluster','lyr-user-reports']
       pointerLayers.forEach(id => {
         m.on('mouseenter', id, () => { if (!isDrawingRef.current) m.getCanvas().style.cursor = 'pointer' })
         m.on('mouseleave', id, () => { if (!isDrawingRef.current) m.getCanvas().style.cursor = '' })
@@ -548,6 +604,13 @@ export function DataMap(props: Props) {
     if (!m || !mapReady || !flyTo) return
     m.flyTo({ center: [flyTo.lng, flyTo.lat], zoom: flyTo.zoom, duration: 1100, essential: true })
   }, [mapReady, flyTo])
+
+  // ── connectivity layer opacity ────────────────────────────────────────────
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !mapReady) return
+    m.setPaintProperty('lyr-connectivity', 'raster-opacity', props.connectivityOpacity ?? 0.70)
+  }, [mapReady, props.connectivityOpacity])
 
   // ── load ecoducts once ───────────────────────────────────────────────────
   useEffect(() => {
@@ -708,6 +771,22 @@ export function DataMap(props: Props) {
     m.getCanvas().style.cursor = isDrawing ? 'crosshair' : ''
     if (!isDrawing) { drawStartRef.current = null; m.dragPan.enable() }
   }, [isDrawing])
+
+  // ── report mode cursor ───────────────────────────────────────────────────
+  useEffect(() => {
+    const m = mapRef.current; if (!m) return
+    if (props.reportMode) m.getCanvas().style.cursor = 'crosshair'
+    else if (!isDrawing) m.getCanvas().style.cursor = ''
+  }, [props.reportMode, isDrawing])
+
+  // ── sync user reports to map ─────────────────────────────────────────────
+  useEffect(() => {
+    const m = mapRef.current; if (!m || !mapReady) return
+    const feats = (props.userReports ?? []).map(r => pointFeature(r.lng, r.lat, {
+      id: r.id, rtype: r.rtype, species: r.species,
+    }))
+    ;(m.getSource(REPORTS_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+  }, [mapReady, props.userReports])
 
   // ── render bbox outline + fit view ──────────────────────────────────────
   useEffect(() => {
