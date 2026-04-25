@@ -38,9 +38,9 @@
   --sky-glow:    rgba(72,202,228,0.2);
 
   /* ─── Typography ─── */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-display: 'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif;
   --font-body:    'DM Sans', system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', monospace;
+  --font-mono:    'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif;
 
   font-family: var(--font-body);
   font-size: 16px;

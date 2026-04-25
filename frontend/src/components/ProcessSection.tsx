@@ -101,7 +101,7 @@ function SignNode({ s }: { s: Sign }) {
         fontSize="9.5"
         letterSpacing="0.12em"
         fontWeight="700"
-        fontFamily="'JetBrains Mono', monospace"
+        fontFamily="'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif"
         fill="#2a4020"
       >
         STEP {s.step}

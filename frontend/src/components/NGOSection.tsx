@@ -52,7 +52,7 @@ function NGORow({ ngo, index, offset = 0 }: { ngo: NGO; index: number; offset?: 
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '4px' }}>
         <span style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
           fontSize: '0.6rem',
           color: 'rgba(0,0,0,0.28)',
           letterSpacing: '0.1em',
@@ -74,7 +74,7 @@ function NGORow({ ngo, index, offset = 0 }: { ngo: NGO; index: number; offset?: 
       </div>
       <div style={{ paddingLeft: '32px' }}>
         <div style={{
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
           fontSize: '0.62rem',
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
@@ -140,7 +140,7 @@ function DonateBanner() {
   }
 
   const labelStyle: React.CSSProperties = {
-    fontFamily: "'JetBrains Mono', monospace",
+    fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
     fontSize: '0.58rem',
     letterSpacing: '0.16em',
     textTransform: 'uppercase',
@@ -291,7 +291,7 @@ export default function NGOSection() {
         {/* Header */}
         <div style={{ marginBottom: '72px' }}>
           <div style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
             fontSize: '0.68rem',
             letterSpacing: '0.22em',
             textTransform: 'uppercase',

@@ -6,9 +6,14 @@ import maplibregl, {
   type MapMouseEvent,
 } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import ecoductPng from '../assets/ecoduct.png'
+import tree2Png from '../assets/tree2.png'
+import roadkillPng from '../assets/roadkill.png'
+import toolboxPng from '../assets/toolbox.png'
+import pawsPng from '../assets/paws.png'
 import { fetchEcoducts, type Ecoduct } from '../api/ecoducts'
 import { bboxToCircle, fetchInaturalist } from '../api/occurrences'
-import { fetchGbifRoadkills } from '../api/roadkills'
+import { fetchRoadkills } from '../api/roadkills'
 import { fetchPinchPoints, type PinchPoint } from '../api/pinchPoints'
 import { fetchConnectivity, gridToCanvas } from '../api/connectivity'
 import { fetchHabitatPatches, type HabitatPatch } from '../api/habitatPatches'
@@ -22,7 +27,7 @@ interface Props {
   onSpeciesChange: (s: Species) => void
   onBboxChange: (b: string | null) => void
   onLayerToggle: (key: keyof Props['layers']) => void
-  onCounts: (counts: { occurrences: number; roadkill: number; pinch: number }) => void
+  onCounts: (counts: { occurrences: number; roadkill: number; pinch: number } | ((prev: { occurrences: number; roadkill: number; pinch: number }) => { occurrences: number; roadkill: number; pinch: number })) => void
   onRequestPlan: () => void
 }
 
@@ -39,8 +44,8 @@ const PINCH_SRC        = 'src-pinch'
 const BBOX_SRC         = 'src-bbox'
 const PATCHES_SRC      = 'src-patches'
 const CONNECTIVITY_SRC = 'src-connectivity'
+
 const NL_CENTER: [number, number] = [5.29, 52.13]
-// 1×1 fully-transparent PNG — canvas guarantees RGBA with alpha=0
 const BLANK_PNG = (() => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; return c.toDataURL() })()
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -60,26 +65,49 @@ function humanType(t: string) { return t.replace(/_/g, ' ').toLowerCase() }
 
 // ── popup HTML ────────────────────────────────────────────────────────────────
 const esc = (v: unknown) => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+
 const row = (label: string, val: string) =>
-  `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid #f3f4f6">` +
-  `<span style="font-size:11px;color:#9ca3af">${label}</span>` +
-  `<span style="font-size:11px;font-weight:600;color:#1f2937">${esc(val)}</span></div>`
+  `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-top:1px solid rgba(0,0,0,0.09)">` +
+  `<span style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(0,0,0,0.45)">${label}</span>` +
+  `<span style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:#1a2818">${esc(val)}</span></div>`
+
+const diagonalTexture = `<div style="position:absolute;inset:0;opacity:0.06;background:repeating-linear-gradient(-45deg,#f0eee6 0,#f0eee6 1px,transparent 1px,transparent 10px)"></div>`
 
 function ecoductHtml(p: Record<string, string>): string {
   const t = p.type ?? ''
-  const colorMap: Record<string,string> = { 'ecoduct':'#6366f1','wildlife underpass':'#8b5cf6','amphibian tunnel':'#06b6d4','small mammal culvert':'#0ea5e9' }
-  const iconMap: Record<string,string>  = { 'ecoduct':'🌉','wildlife underpass':'🚇','amphibian tunnel':'🐸','small mammal culvert':'🐀' }
-  const c = colorMap[t] ?? '#6366f1', icon = iconMap[t] ?? '🌿'
+  const colorMap: Record<string,string> = {
+    'ecoduct': '#2a4020',
+    'wildlife underpass': '#2E6028',
+    'amphibian tunnel': '#7C5A3C',
+    'small mammal culvert': '#B87830',
+  }
+  const iconMap: Record<string,string> = {
+    'ecoduct': '🌉',
+    'wildlife underpass': '🚇',
+    'amphibian tunnel': '🐸',
+    'small mammal culvert': '🐀',
+  }
+  const c = colorMap[t] ?? '#2a4020'
+  const icon = iconMap[t] ?? '🌿'
   return (
-    `<div style="font-family:'DM Sans',sans-serif;width:230px">` +
-    `<div style="background:${c};padding:14px 16px;display:flex;align-items:center;gap:10px">` +
-    `<span style="font-size:22px">${icon}</span><div style="min-width:0">` +
-    `<div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.7);letter-spacing:0.1em;text-transform:uppercase">Infrastructure</div>` +
-    `<div style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name ?? 'Ecoduct')}</div>` +
-    `</div></div><div style="padding:12px 16px;background:#fff">` +
-    `<span style="background:${c}1a;color:${c};font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:3px 9px;border-radius:20px;display:inline-block;margin-bottom:10px">${esc(t)}</span>` +
+    `<div style="font-family:'DM Sans',sans-serif;width:240px">` +
+    `<div style="background:${c};padding:14px 16px 12px;position:relative;overflow:hidden">` +
+    diagonalTexture +
+    `<div style="position:relative;display:flex;align-items:center;gap:10px">` +
+    `<span style="font-size:22px;line-height:1">${icon}</span>` +
+    `<div style="min-width:0">` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:8px;color:rgba(240,238,230,0.55);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px">Infrastructure</div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:13px;font-weight:700;color:#f0eee6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:0.04em">${esc(p.name ?? 'Ecoduct')}</div>` +
+    `</div></div></div>` +
+    `<div style="padding:12px 16px 14px;background:#f0eee6">` +
+    `<span style="background:rgba(42,64,32,0.1);color:${c};font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:3px 8px;border-radius:2px;display:inline-block;margin-bottom:10px;border:1px solid rgba(42,64,32,0.15)">${esc(t) || 'unknown type'}</span>` +
     (p.road ? row('Road', p.road) : '') +
-    (p.species ? `<div style="padding:6px 0;border-top:1px solid #f3f4f6"><div style="font-size:10px;color:#9ca3af;margin-bottom:2px">Target species</div><div style="font-size:11px;color:#374151;font-style:italic">${esc(p.species)}</div></div>` : '') +
+    (p.species
+      ? `<div style="padding:7px 0;border-top:1px solid rgba(0,0,0,0.09)">` +
+        `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(0,0,0,0.45);margin-bottom:4px">Target species</div>` +
+        `<div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#1a2818;font-style:italic;line-height:1.5">${esc(p.species)}</div>` +
+        `</div>`
+      : '') +
     `</div></div>`
   )
 }
@@ -87,99 +115,130 @@ function ecoductHtml(p: Record<string, string>): string {
 function pinchHtml(p: Record<string, string>): string {
   const score = parseFloat(p.score) || 0
   const pct = Math.round(score * 100)
-  const barC = pct > 75 ? '#ef4444' : pct > 50 ? '#f97316' : pct > 25 ? '#f59e0b' : '#22c55e'
-  const label = pct > 75 ? 'Critical' : pct > 50 ? 'High' : pct > 25 ? 'Moderate' : 'Low'
+  const sev = pct > 75
+    ? { label: 'Critical', color: '#7C5A3C' }
+    : pct > 50
+    ? { label: 'High', color: '#B87830' }
+    : pct > 25
+    ? { label: 'Moderate', color: '#C89040' }
+    : { label: 'Low', color: '#2E6028' }
   const cover = (p.cover ?? '').toLowerCase()
-  let fix = '🏗️ Small mammal culvert (€15k–€60k)'
-  if (/motorway|highway/.test(cover))   fix = '🛣️ Ecoduct recommended (€2M–€8M)'
+  let fix = '🏗 Small mammal culvert (€15k–€60k)'
+  if (/motorway|highway/.test(cover))        fix = '🛣 Ecoduct recommended (€2M–€8M)'
   else if (/trunk|primary|road/.test(cover)) fix = '🚇 Wildlife underpass (€200k–€800k)'
-  else if (/agri|farm|crop/.test(cover)) fix = '🌾 Hedgerow planting (€8–15/m)'
-  else if (/fence/.test(cover))          fix = '🔓 Fence modification / removal'
+  else if (/agri|farm|crop/.test(cover))     fix = '🌾 Hedgerow planting (€8–15/m)'
+  else if (/fence/.test(cover))              fix = '🔓 Fence modification / removal'
   return (
-    `<div style="font-family:'DM Sans',sans-serif;width:250px">` +
-    `<div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:14px 16px;display:flex;align-items:center;gap:10px">` +
-    `<span style="font-size:22px">⚡</span><div>` +
-    `<div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.75);letter-spacing:0.1em;text-transform:uppercase">Movement Bottleneck</div>` +
-    `<div style="font-size:14px;font-weight:700;color:#fff">Critical Pinch Point</div>` +
-    `</div></div><div style="padding:12px 16px;background:#fff">` +
-    `<div style="margin-bottom:10px">` +
-    `<div style="display:flex;justify-content:space-between;margin-bottom:5px">` +
-    `<span style="font-size:11px;color:#6b7280">Bottleneck severity</span>` +
-    `<span style="font-size:11px;font-weight:700;color:${barC}">${label} · ${pct}%</span></div>` +
-    `<div style="background:#f3f4f6;border-radius:100px;height:7px;overflow:hidden">` +
-    `<div style="background:${barC};width:${pct}%;height:100%;border-radius:100px"></div></div></div>` +
+    `<div style="font-family:'DM Sans',sans-serif;width:260px">` +
+    `<div style="background:#1a2818;padding:14px 16px 12px;position:relative;overflow:hidden">` +
+    diagonalTexture +
+    `<div style="position:relative;display:flex;align-items:center;gap:10px">` +
+    `<span style="font-size:22px;line-height:1">⚡</span>` +
+    `<div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:8px;color:rgba(240,238,230,0.5);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px">Movement bottleneck</div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:13px;font-weight:700;color:#f0eee6;text-transform:uppercase;letter-spacing:0.04em">Pinch Point</div>` +
+    `</div></div></div>` +
+    `<div style="padding:12px 16px 14px;background:#f0eee6">` +
+    `<div style="margin-bottom:12px">` +
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">` +
+    `<span style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(0,0,0,0.45)">Bottleneck severity</span>` +
+    `<span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:${sev.color}">${sev.label} · ${pct}%</span>` +
+    `</div>` +
+    `<div style="background:rgba(0,0,0,0.09);border-radius:2px;height:5px;overflow:hidden">` +
+    `<div style="background:${sev.color};width:${pct}%;height:100%;border-radius:2px"></div>` +
+    `</div></div>` +
     (p.cover ? row('Land cover', p.cover) : '') +
-    (p.between ? `<div style="padding:5px 0;border-top:1px solid #f3f4f6"><div style="font-size:10px;color:#9ca3af;margin-bottom:2px">Connects</div><div style="font-size:11px;color:#374151">${esc(p.between)}</div></div>` : '') +
-    `<div style="margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;font-size:11px;color:#92400e;line-height:1.5">${fix}</div>` +
+    (p.between
+      ? `<div style="padding:7px 0;border-top:1px solid rgba(0,0,0,0.09)">` +
+        `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(0,0,0,0.45);margin-bottom:4px">Connects</div>` +
+        `<div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#1a2818;line-height:1.5">${esc(p.between)}</div>` +
+        `</div>`
+      : '') +
+    `<div style="margin-top:10px;background:rgba(184,120,48,0.08);border:1px solid rgba(184,120,48,0.2);border-radius:2px;padding:9px 11px">` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(0,0,0,0.38);margin-bottom:4px">Recommended fix</div>` +
+    `<div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#7C5A3C;line-height:1.5;font-weight:500">${fix}</div>` +
+    `</div>` +
     `</div></div>`
   )
 }
 
 function patchHtml(p: Record<string, string>): string {
-  const cMap: Record<string,string> = { SOURCE:'#22c55e', DESTINATION:'#3b82f6', STEPPING_STONE:'#a855f7' }
-  const iMap: Record<string,string> = { SOURCE:'🌳', DESTINATION:'🎯', STEPPING_STONE:'🪨' }
-  const tMap: Record<string,string> = { SOURCE:'Source Habitat', DESTINATION:'Destination', STEPPING_STONE:'Stepping Stone' }
+  const cMap: Record<string,string> = { SOURCE: '#2E6028', DESTINATION: '#2a4020', STEPPING_STONE: '#B87830' }
+  const iMap: Record<string,string> = { SOURCE: '🌳', DESTINATION: '🎯', STEPPING_STONE: '🪨' }
+  const tMap: Record<string,string> = { SOURCE: 'Source Habitat', DESTINATION: 'Destination', STEPPING_STONE: 'Stepping Stone' }
   const dMap: Record<string,string> = {
     SOURCE: 'Population-rich habitat animals disperse from.',
     DESTINATION: 'Target habitat needing connectivity restored.',
     STEPPING_STONE: 'Intermediate patch facilitating movement.',
   }
-  const kind = p.kind ?? 'SOURCE', c = cMap[kind] ?? '#22c55e'
+  const kind = p.kind ?? 'SOURCE'
+  const c = cMap[kind] ?? '#2E6028'
   const q = Math.round((parseFloat(p.quality) || 0) * 100)
   return (
-    `<div style="font-family:'DM Sans',sans-serif;width:230px">` +
-    `<div style="background:${c};padding:14px 16px;display:flex;align-items:center;gap:10px">` +
-    `<span style="font-size:22px">${iMap[kind] ?? '🌿'}</span><div>` +
-    `<div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.75);letter-spacing:0.1em;text-transform:uppercase">Habitat Patch</div>` +
-    `<div style="font-size:14px;font-weight:700;color:#fff">${tMap[kind] ?? kind}</div>` +
-    `</div></div><div style="padding:12px 16px;background:#fff">` +
-    `<p style="font-size:11px;color:#6b7280;margin:0 0 8px;line-height:1.5">${dMap[kind] ?? ''}</p>` +
+    `<div style="font-family:'DM Sans',sans-serif;width:240px">` +
+    `<div style="background:${c};padding:14px 16px 12px;position:relative;overflow:hidden">` +
+    diagonalTexture +
+    `<div style="position:relative;display:flex;align-items:center;gap:10px">` +
+    `<span style="font-size:22px;line-height:1">${iMap[kind] ?? '🌿'}</span>` +
+    `<div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:8px;color:rgba(240,238,230,0.55);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px">Habitat Patch</div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:13px;font-weight:700;color:#f0eee6;text-transform:uppercase;letter-spacing:0.04em">${tMap[kind] ?? kind}</div>` +
+    `</div></div></div>` +
+    `<div style="padding:12px 16px 14px;background:#f0eee6">` +
+    `<p style="font-family:'DM Sans',sans-serif;font-size:11px;color:rgba(0,0,0,0.5);margin:0 0 10px;line-height:1.6;font-style:italic">${dMap[kind] ?? ''}</p>` +
     (p.areaHa ? row('Area', `${parseFloat(p.areaHa).toFixed(1)} ha`) : '') +
     (p.cover ? row('Land cover', p.cover) : '') +
-    `<div style="padding:6px 0;border-top:1px solid #f3f4f6">` +
-    `<div style="display:flex;justify-content:space-between;margin-bottom:4px">` +
-    `<span style="font-size:11px;color:#9ca3af">Habitat quality</span>` +
-    `<span style="font-size:11px;font-weight:600;color:${c}">${q}%</span></div>` +
-    `<div style="background:#f3f4f6;border-radius:100px;height:5px;overflow:hidden">` +
-    `<div style="background:${c};width:${q}%;height:100%;border-radius:100px"></div></div>` +
-    `</div></div></div>`
+    `<div style="padding:7px 0;border-top:1px solid rgba(0,0,0,0.09)">` +
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">` +
+    `<span style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(0,0,0,0.45)">Habitat quality</span>` +
+    `<span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:${c}">${q}%</span>` +
+    `</div>` +
+    `<div style="background:rgba(0,0,0,0.09);border-radius:2px;height:4px;overflow:hidden">` +
+    `<div style="background:${c};width:${q}%;height:100%;border-radius:2px"></div>` +
+    `</div></div>` +
+    `</div></div>`
   )
 }
 
 function roadkillDetailHtml(p: Record<string, string>): string {
-  const d = p.date ? new Date(p.date).toLocaleDateString('en-NL', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Date unknown'
+  const d = p.date
+    ? new Date(p.date).toLocaleDateString('en-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'Date unknown'
   const sp = p.species ?? ''
   return (
     `<div style="font-family:'DM Sans',sans-serif;width:240px">` +
-    `<div style="background:linear-gradient(135deg,#7f1d1d,#991b1b,#b91c1c);padding:16px 16px 14px;position:relative;overflow:hidden">` +
-    // subtle texture lines
-    `<div style="position:absolute;inset:0;opacity:0.07;background:repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 1px,transparent 8px)"></div>` +
+    `<div style="background:#1a2818;padding:16px 16px 14px;position:relative;overflow:hidden">` +
+    diagonalTexture +
     `<div style="position:relative;display:flex;align-items:center;gap:12px">` +
-    `<span style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))">💀</span>` +
+    `<span style="font-size:26px;line-height:1">🚗</span>` +
     `<div>` +
-    `<div style="font-size:9px;font-weight:700;color:rgba(255,200,200,0.8);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:2px">Road Mortality</div>` +
-    `<div style="font-size:13px;font-weight:700;color:#fff;line-height:1.2">${sp ? esc(sp) : 'Unknown species'}</div>` +
-    `</div></div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:8px;color:rgba(240,238,230,0.5);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px">Road Mortality</div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:13px;font-weight:700;color:#f0eee6;text-transform:uppercase;letter-spacing:0.04em">${sp ? esc(sp) : 'Unknown species'}</div>` +
+    `</div></div></div>` +
+    `<div style="padding:12px 14px 14px;background:#f0eee6">` +
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.09)">` +
+    `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:0.35"><circle cx="12" cy="12" r="10" stroke="#1a2818" stroke-width="2"/><path d="M12 6v6l4 2" stroke="#1a2818" stroke-width="2" stroke-linecap="round"/></svg>` +
+    `<span style="font-family:'DM Sans',sans-serif;font-size:12px;color:rgba(0,0,0,0.65)">${d}</span>` +
     `</div>` +
-    `<div style="padding:12px 14px;background:#fff">` +
-    `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">` +
-    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><circle cx="12" cy="12" r="10" stroke="#9ca3af" stroke-width="1.8"/><path d="M12 6v6l4 2" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/></svg>` +
-    `<span style="font-size:11px;color:#4b5563">${d}</span>` +
-    `</div>` +
-    `<div style="margin-top:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 10px;font-size:10px;color:#991b1b;line-height:1.55">` +
-    `<strong>Source:</strong> GBIF · Human observation · Netherlands` +
+    `<div style="margin-top:10px;background:rgba(124,90,60,0.07);border:1px solid rgba(124,90,60,0.15);border-radius:2px;padding:8px 10px">` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(0,0,0,0.38);margin-bottom:3px">Source</div>` +
+    `<div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#7C5A3C;font-weight:500">iNaturalist · Human observation · Netherlands</div>` +
     `</div>` +
     `</div></div>`
   )
 }
 
 function tooltipHtml(isRoadkill: boolean, date: string): string {
-  const d = date ? new Date(date).toLocaleDateString('en-NL', { day:'numeric', month:'short', year:'numeric' }) : 'Date unknown'
+  const d = date
+    ? new Date(date).toLocaleDateString('en-NL', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'Date unknown'
+  const c = isRoadkill ? '#7C5A3C' : '#2a4020'
   return (
-    `<div style="font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:8px;padding:1px 0">` +
-    `<span style="font-size:18px;line-height:1">${isRoadkill ? '💀' : '🐾'}</span><div>` +
-    `<div style="font-size:12px;font-weight:600;color:${isRoadkill ? '#e11d48' : '#0891b2'}">${isRoadkill ? 'Road mortality' : 'Species sighting'}</div>` +
-    `<div style="font-size:10px;color:#9ca3af;margin-top:1px">${d}</div>` +
+    `<div style="font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:9px;padding:2px 0">` +
+    `<span style="font-size:16px;line-height:1">${isRoadkill ? '🚗' : '🐾'}</span>` +
+    `<div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:11px;font-weight:700;color:${c};text-transform:uppercase;letter-spacing:0.06em">${isRoadkill ? 'Road mortality' : 'Species sighting'}</div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;color:rgba(0,0,0,0.4);margin-top:2px;letter-spacing:0.06em">${d}</div>` +
     `</div></div>`
   )
 }
@@ -187,17 +246,24 @@ function tooltipHtml(isRoadkill: boolean, date: string): string {
 // ── component ─────────────────────────────────────────────────────────────────
 export function DataMap(props: Props) {
   const { species, bbox, layers, flyTo, onBboxChange, onCounts } = props
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const mapRef       = useRef<maplibregl.Map | null>(null)
-  const rafRef       = useRef<number | null>(null)
-  const hoverPopRef  = useRef<maplibregl.Popup | null>(null)
-  const [mapReady,        setMapReady]        = useState(false)
-  const [error,           setError]           = useState<string | null>(null)
-  const [pendingCorner,   setPendingCorner]   = useState<[number, number] | null>(null)
-  const [loadingCircuit,  setLoadingCircuit]  = useState(false)
+  const containerRef  = useRef<HTMLDivElement | null>(null)
+  const mapRef           = useRef<maplibregl.Map | null>(null)
+  const rafRef           = useRef<number | null>(null)
+  const hoverPopRef      = useRef<maplibregl.Popup | null>(null)
+  const clickPopRef      = useRef<maplibregl.Popup | null>(null)
+  const onBboxChangeRef  = useRef(onBboxChange)
+  const isDrawingRef     = useRef(false)
+  const drawStartRef     = useRef<[number, number] | null>(null)
+  const [mapReady,        setMapReady]       = useState(false)
+  const [error,           setError]          = useState<string | null>(null)
+  const [isDrawing,       setIsDrawing]      = useState(false)
+  const [loadingCircuit,  setLoadingCircuit] = useState(false)
 
   const speciesLatin = useMemo(() => SPECIES.find(s => s.value === species)?.latin ?? '', [species])
   const speciesLabel = useMemo(() => SPECIES.find(s => s.value === species)?.label ?? species, [species])
+
+  useEffect(() => { onBboxChangeRef.current = onBboxChange }, [onBboxChange])
+  useEffect(() => { isDrawingRef.current = isDrawing }, [isDrawing])
 
   // ── init map ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -215,151 +281,168 @@ export function DataMap(props: Props) {
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right')
 
     m.on('load', () => {
+      // ── load icons ──
+      const loadIcon = (name: string, src: string) => {
+        const img = new Image()
+        img.onload = () => { if (!m.hasImage(name)) m.addImage(name, img, { sdf: false }) }
+        img.src = src
+      }
+      loadIcon('ecoduct-icon',  ecoductPng)
+      loadIcon('habitat-icon',  tree2Png)
+      loadIcon('roadkill-icon', roadkillPng)
+      loadIcon('toolbox-icon',  toolboxPng)
+      loadIcon('paws-icon',     pawsPng)
+
       // ── sources ──
-      m.addSource(ECODUCTS_SRC, { type: 'geojson', data: emptyFc() })
-      m.addSource(OCC_SRC,  { type: 'geojson', data: emptyFc(), cluster: true, clusterMaxZoom: 11, clusterRadius: 45 })
-      m.addSource(RK_SRC,   { type: 'geojson', data: emptyFc() })
-      m.addSource(PINCH_SRC,   { type: 'geojson', data: emptyFc() })
-      m.addSource(PATCHES_SRC, { type: 'geojson', data: emptyFc() })
-      m.addSource(BBOX_SRC,    { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      m.addSource(ECODUCTS_SRC,     { type: 'geojson', data: emptyFc() })
+      m.addSource(OCC_SRC,          { type: 'geojson', data: emptyFc(), cluster: true, clusterMaxZoom: 11, clusterRadius: 45 })
+      m.addSource(RK_SRC,           { type: 'geojson', data: emptyFc() })
+      m.addSource(PINCH_SRC,        { type: 'geojson', data: emptyFc() })
+      m.addSource(PATCHES_SRC,      { type: 'geojson', data: emptyFc() })
+      m.addSource(BBOX_SRC,         { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
       m.addSource(CONNECTIVITY_SRC, {
         type: 'image', url: BLANK_PNG,
         coordinates: [[3.2,53.6],[7.2,53.6],[7.2,50.7],[3.2,50.7]],
       })
 
-      // ── connectivity heatmap (bottom layer) ──
+      // ── connectivity heatmap ──
       m.addLayer({ id: 'lyr-connectivity', type: 'raster', source: CONNECTIVITY_SRC,
         paint: { 'raster-opacity': 0.70, 'raster-resampling': 'linear' } })
 
       // ── bbox ──
       m.addLayer({ id: 'lyr-bbox-fill', type: 'fill', source: BBOX_SRC,
-        paint: { 'fill-color': '#6366f1', 'fill-opacity': 0.05 } })
+        paint: { 'fill-color': '#2a4020', 'fill-opacity': 0.04 } })
       m.addLayer({ id: 'lyr-bbox', type: 'line', source: BBOX_SRC,
-        paint: { 'line-color': '#6366f1', 'line-width': 2, 'line-dasharray': [4, 4] } })
+        paint: { 'line-color': '#2a4020', 'line-width': 1.5, 'line-dasharray': [5, 4] } })
 
       // ── habitat patches ──
-      m.addLayer({ id: 'lyr-patches-halo', type: 'circle', source: PATCHES_SRC, paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 22, 12, 48],
-        'circle-color': ['match', ['get', 'kind'], 'SOURCE','#22c55e','DESTINATION','#3b82f6','#a855f7'],
-        'circle-opacity': 0.12, 'circle-stroke-width': 0,
-      }})
-      m.addLayer({ id: 'lyr-patches', type: 'circle', source: PATCHES_SRC, paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 11, 12, 22],
-        'circle-color': ['match', ['get', 'kind'], 'SOURCE','#22c55e','DESTINATION','#3b82f6','#a855f7'],
-        'circle-opacity': 0.92, 'circle-stroke-width': 3, 'circle-stroke-color': '#fff',
-      }})
-      m.addLayer({ id: 'lyr-patches-label', type: 'symbol', source: PATCHES_SRC,
+      m.addLayer({ id: 'lyr-patches', type: 'symbol', source: PATCHES_SRC,
         layout: {
-          'text-field': ['match', ['get', 'kind'], 'SOURCE', 'Source', 'DESTINATION', 'Dest.', 'Step'],
-          'text-font': ['Noto Sans Bold', 'Noto Sans Regular'],
-          'text-size': 10, 'text-offset': [0, 2.2], 'text-anchor': 'top',
+          'icon-image': 'habitat-icon',
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 6, 0.15, 10, 0.22, 14, 0.32],
+          'icon-anchor': 'bottom',
+          'icon-allow-overlap': true,
+          'text-field': ['get', 'speciesLabel'],
+          'text-font': ['Noto Sans Italic', 'Noto Sans Regular'],
+          'text-size': 10,
+          'text-offset': [0, 0.4],
+          'text-anchor': 'top',
+          'text-allow-overlap': false,
+          'text-optional': true,
         },
         paint: {
-          'text-color': ['match', ['get', 'kind'], 'SOURCE','#15803d','DESTINATION','#1d4ed8','#7e22ce'],
-          'text-halo-color': '#fff', 'text-halo-width': 1.5,
+          'icon-opacity': 0.92,
+          'text-color': '#2a4020',
+          'text-halo-color': 'rgba(240,238,230,0.95)',
+          'text-halo-width': 2,
         },
       })
 
       // ── occurrences (clustered) ──
-      m.addLayer({ id: 'lyr-occ-cluster', type: 'circle', source: OCC_SRC,
+      m.addLayer({ id: 'lyr-occ-cluster', type: 'symbol', source: OCC_SRC,
         filter: ['has', 'point_count'],
+        layout: {
+          'icon-image': 'paws-icon',
+          'icon-size': ['step', ['get', 'point_count'], 0.18, 10, 0.22, 40, 0.28],
+          'icon-allow-overlap': true,
+          'icon-anchor': 'center',
+          'text-field': '{point_count_abbreviated}',
+          'text-font': ['Noto Sans Bold', 'Noto Sans Regular'],
+          'text-size': 10,
+          'text-anchor': 'bottom',
+          'text-offset': [0, -0.1],
+        },
         paint: {
-          'circle-color': '#06b6d4', 'circle-opacity': 0.9,
-          'circle-stroke-width': 3, 'circle-stroke-color': '#fff',
-          'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 40, 28],
+          'icon-opacity': 0.95,
+          'text-color': '#2a4020',
+          'text-halo-color': '#f0eee6',
+          'text-halo-width': 1.5,
         },
       })
       m.addLayer({ id: 'lyr-occ-cluster-label', type: 'symbol', source: OCC_SRC,
         filter: ['has', 'point_count'],
-        layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 11,
-          'text-font': ['Noto Sans Bold', 'Noto Sans Regular'] },
-        paint: { 'text-color': '#fff' },
+        layout: { 'text-field': '', 'text-font': ['Noto Sans Regular'] },
+        paint: {},
       })
-      m.addLayer({ id: 'lyr-occurrences-halo', type: 'circle', source: OCC_SRC,
+      m.addLayer({ id: 'lyr-occurrences', type: 'symbol', source: OCC_SRC,
         filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 12, 12, 24],
-          'circle-color': '#06b6d4', 'circle-opacity': 0.14, 'circle-stroke-width': 0,
+        layout: {
+          'icon-image': 'paws-icon',
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 6, 0.08, 10, 0.12, 14, 0.18],
+          'icon-allow-overlap': true,
+          'icon-anchor': 'center',
         },
-      })
-      m.addLayer({ id: 'lyr-occurrences', type: 'circle', source: OCC_SRC,
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 6, 12, 11],
-          'circle-color': '#06b6d4', 'circle-opacity': 1,
-          'circle-stroke-width': 3, 'circle-stroke-color': '#fff',
-        },
+        paint: { 'icon-opacity': 0.95 },
       })
 
-      // ── roadkill: blood-red heatmap (always visible) ──
-      m.addLayer({
-        id: 'lyr-rk-heat', type: 'heatmap', source: RK_SRC,
-        paint: {
-          'heatmap-weight': 1,
-          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1.5, 12, 4.0],
-          'heatmap-color': [
-            'interpolate', ['linear'], ['heatmap-density'],
-            0,    'rgba(0,0,0,0)',
-            0.08, 'rgba(80,0,0,0.35)',
-            0.25, 'rgba(155,0,0,0.62)',
-            0.50, 'rgba(205,15,10,0.80)',
-            0.75, 'rgba(232,45,10,0.92)',
-            1.0,  'rgba(255,140,0,1.0)',
-          ],
-          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 22, 7, 34, 12, 55],
-          'heatmap-opacity': 0.88,
-        },
-      })
-      // ── roadkill: skull markers visible at all zooms ──
+      // ── roadkill ──
       m.addLayer({
         id: 'lyr-rk-skull', type: 'symbol', source: RK_SRC,
         layout: {
-          'text-field': '💀',
-          'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 9, 13, 14, 22],
-          'text-allow-overlap': false,
-          'text-font': ['Noto Sans Regular'],
+          'icon-image': 'roadkill-icon',
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.12, 9, 0.16, 14, 0.24],
+          'icon-allow-overlap': true,
+          'icon-anchor': 'center',
         },
-        paint: { 'text-opacity': 1 },
+        paint: { 'icon-opacity': 0.9 },
       })
 
       // ── ecoducts ──
-      m.addLayer({ id: 'lyr-ecoducts-halo', type: 'circle', source: ECODUCTS_SRC, paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 16, 12, 30],
-        'circle-color': '#6366f1', 'circle-opacity': 0.14, 'circle-stroke-width': 0,
-      }})
-      m.addLayer({ id: 'lyr-ecoducts', type: 'circle', source: ECODUCTS_SRC, paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 8, 12, 15],
-        'circle-color': '#6366f1', 'circle-opacity': 1,
-        'circle-stroke-width': 3, 'circle-stroke-color': '#fff',
-      }})
+      m.addLayer({ id: 'lyr-ecoducts', type: 'symbol', source: ECODUCTS_SRC,
+        layout: {
+          'icon-image': 'ecoduct-icon',
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 6, 0.16, 10, 0.24, 14, 0.36],
+          'icon-allow-overlap': true,
+          'icon-anchor': 'bottom',
+        },
+        paint: { 'icon-opacity': 1 },
+      })
 
       // ── pinch points ──
-      m.addLayer({ id: 'lyr-pinch-halo', type: 'circle', source: PINCH_SRC, paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 20, 12, 38],
-        'circle-color': '#f59e0b', 'circle-opacity': 0.14, 'circle-stroke-width': 0,
-      }})
-      m.addLayer({ id: 'lyr-pinch', type: 'circle', source: PINCH_SRC, paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 9, 12, 16],
-        'circle-color': '#f59e0b', 'circle-opacity': 1,
-        'circle-stroke-width': 3, 'circle-stroke-color': '#fff',
-      }})
+      m.addLayer({ id: 'lyr-pinch', type: 'symbol', source: PINCH_SRC,
+        layout: {
+          'icon-image': 'toolbox-icon',
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 6, 0.14, 10, 0.20, 14, 0.28],
+          'icon-anchor': 'bottom',
+          'icon-allow-overlap': true,
+        },
+        paint: { 'icon-opacity': 0.95 },
+      })
 
       // ── hover popup ──────────────────────────────────────────────────────
       const hoverPop = new maplibregl.Popup({
-        closeButton: false, closeOnClick: false, offset: 12, maxWidth: '240px',
+        closeButton: false, closeOnClick: false, offset: 14, maxWidth: '240px',
       })
       hoverPopRef.current = hoverPop
 
-      const showHover = (isRoadkill: boolean, e: maplibregl.MapLayerMouseEvent) => {
-        const f = e.features?.[0]
-        if (!f) return
+      // ── click popup helper ────────────────────────────────────────────────
+      const openPopup = (html: string, lng: number, lat: number) => {
+        clickPopRef.current?.remove()
+        hoverPop.remove()
+        const pop = new maplibregl.Popup({
+          closeButton: true,
+          closeOnClick: false,
+          maxWidth: '280px',
+          offset: 30,
+          className: 'wc-popup',
+        })
+          .setLngLat([lng, lat])
+          .setHTML(html)
+          .addTo(m)
+        pop.on('close', () => { clickPopRef.current = null })
+        clickPopRef.current = pop
+      }
+
+      // ── hover tooltips ────────────────────────────────────────────────────
+      m.on('mousemove', 'lyr-occurrences', (e) => {
+        const f = e.features?.[0]; if (!f) return
         const p = f.properties as Record<string, string>
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-        hoverPop.setLngLat([lng, lat]).setHTML(tooltipHtml(isRoadkill, p.date ?? '')).addTo(m)
-      }
-      m.on('mousemove',  'lyr-occurrences', (e) => showHover(false, e))
-      m.on('mouseleave', 'lyr-occurrences', ()  => hoverPop.remove())
-      m.on('mousemove',  'lyr-rk-skull', (e) => {
+        hoverPop.setLngLat([lng, lat]).setHTML(tooltipHtml(false, p.date ?? '')).addTo(m)
+      })
+      m.on('mouseleave', 'lyr-occurrences', () => hoverPop.remove())
+
+      m.on('mousemove', 'lyr-rk-skull', (e) => {
         const f = e.features?.[0]; if (!f) return
         const p = f.properties as Record<string, string>
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
@@ -367,72 +450,84 @@ export function DataMap(props: Props) {
       })
       m.on('mouseleave', 'lyr-rk-skull', () => hoverPop.remove())
 
-      // ── click popups ─────────────────────────────────────────────────────
-      const popup = (html: string, lngLat: [number, number]) =>
-        new maplibregl.Popup({ closeButton: false, maxWidth: '260px', offset: 12 })
-          .setLngLat(lngLat).setHTML(html).addTo(m)
-
+      // ── click popups ──────────────────────────────────────────────────────
       m.on('click', 'lyr-occurrences', (e) => {
         const f = e.features?.[0]; if (!f) return
         const p = f.properties as Record<string, string>
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-        hoverPop.remove()
-        popup(tooltipHtml(false, p.date ?? ''), [lng, lat])
+        openPopup(tooltipHtml(false, p.date ?? ''), lng, lat)
       })
       m.on('click', 'lyr-rk-skull', (e) => {
         const f = e.features?.[0]; if (!f) return
         const p = f.properties as Record<string, string>
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-        hoverPop.remove()
-        popup(roadkillDetailHtml(p), [lng, lat])
+        openPopup(roadkillDetailHtml(p), lng, lat)
       })
       m.on('click', 'lyr-ecoducts', (e) => {
         const f = e.features?.[0]; if (!f) return
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-        popup(ecoductHtml(f.properties as Record<string, string>), [lng, lat])
+        openPopup(ecoductHtml(f.properties as Record<string, string>), lng, lat)
       })
       m.on('click', 'lyr-pinch', (e) => {
         const f = e.features?.[0]; if (!f) return
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-        popup(pinchHtml(f.properties as Record<string, string>), [lng, lat])
+        openPopup(pinchHtml(f.properties as Record<string, string>), lng, lat)
       })
       m.on('click', 'lyr-patches', (e) => {
         const f = e.features?.[0]; if (!f) return
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-        popup(patchHtml(f.properties as Record<string, string>), [lng, lat])
+        openPopup(patchHtml(f.properties as Record<string, string>), lng, lat)
       })
 
-      // Cluster zoom-in
-      const zoomCluster = (srcId: string, layerId: string) => {
-        m.on('click', layerId, (e) => {
-          const f = e.features?.[0]; if (!f) return
-          const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-          ;(m.getSource(srcId) as GeoJSONSource).getClusterExpansionZoom(
-            f.properties!.cluster_id as number,
-            (err, zoom) => { if (!err) m.easeTo({ center: [lng, lat], zoom: zoom + 0.5 }) }
-          )
-        })
-      }
-      zoomCluster(OCC_SRC, 'lyr-occ-cluster')
+      // ── cluster zoom-in ───────────────────────────────────────────────────
+      m.on('click', 'lyr-occ-cluster', (e) => {
+        const f = e.features?.[0]; if (!f) return
+        const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
+        ;(m.getSource(OCC_SRC) as GeoJSONSource).getClusterExpansionZoom(
+          f.properties!.cluster_id as number
+        ).then(zoom => { m.easeTo({ center: [lng, lat], zoom: zoom + 0.5 }) })
+      })
 
-      // ── cursors ──────────────────────────────────────────────────────────
+      // ── drag-to-draw bbox ─────────────────────────────────────────────────
+      m.on('mousedown', (e: MapMouseEvent) => {
+        if (!isDrawingRef.current) return
+        const blocked = m.queryRenderedFeatures(e.point, {
+          layers: ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
+        })
+        if (blocked.length > 0) return
+        e.preventDefault()
+        drawStartRef.current = [e.lngLat.lng, e.lngLat.lat]
+        m.dragPan.disable()
+      })
+      m.on('mousemove', (e: MapMouseEvent) => {
+        if (!isDrawingRef.current || !drawStartRef.current) return
+        const [a0, a1] = drawStartRef.current
+        const { lng, lat } = e.lngLat
+        if (Math.abs(a0 - lng) > 0.0001 || Math.abs(a1 - lat) > 0.0001) {
+          const live = `${Math.min(a0,lng)},${Math.min(a1,lat)},${Math.max(a0,lng)},${Math.max(a1,lat)}`
+          ;(m.getSource(BBOX_SRC) as GeoJSONSource | undefined)?.setData(bboxLine(live))
+        }
+      })
+      m.on('mouseup', (e: MapMouseEvent) => {
+        if (!isDrawingRef.current || !drawStartRef.current) return
+        const [a0, a1] = drawStartRef.current
+        const { lng, lat } = e.lngLat
+        drawStartRef.current = null
+        m.dragPan.enable()
+        setIsDrawing(false)
+        if (Math.abs(a0 - lng) > 0.001 || Math.abs(a1 - lat) > 0.001) {
+          const newBbox = `${Math.min(a0,lng).toFixed(4)},${Math.min(a1,lat).toFixed(4)},${Math.max(a0,lng).toFixed(4)},${Math.max(a1,lat).toFixed(4)}`
+          onBboxChangeRef.current(newBbox)
+        }
+      })
+
+      // ── cursors ───────────────────────────────────────────────────────────
       const pointerLayers = ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences',
                              'lyr-rk-skull','lyr-occ-cluster']
       pointerLayers.forEach(id => {
-        m.on('mouseenter', id, () => { m.getCanvas().style.cursor = 'pointer' })
-        m.on('mouseleave', id, () => { m.getCanvas().style.cursor = '' })
+        m.on('mouseenter', id, () => { if (!isDrawingRef.current) m.getCanvas().style.cursor = 'pointer' })
+        m.on('mouseleave', id, () => { if (!isDrawingRef.current) m.getCanvas().style.cursor = '' })
       })
-
-      // ── pulsing animation for pinch halos ────────────────────────────────
-      let op = 0.12, dir = 1
-      const pulse = () => {
-        op += dir * 0.004
-        if (op > 0.32) { op = 0.32; dir = -1 }
-        if (op < 0.06) { op = 0.06; dir =  1 }
-        if (m.getLayer('lyr-pinch-halo')) m.setPaintProperty('lyr-pinch-halo', 'circle-opacity', op)
-        rafRef.current = requestAnimationFrame(pulse)
-      }
-      rafRef.current = requestAnimationFrame(pulse)
 
       setMapReady(true)
     })
@@ -441,6 +536,7 @@ export function DataMap(props: Props) {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       hoverPopRef.current?.remove()
+      clickPopRef.current?.remove()
       m.remove()
       mapRef.current = null
     }
@@ -477,20 +573,14 @@ export function DataMap(props: Props) {
     const m = mapRef.current
     if (!m || !mapReady) return
     const vis = (on: boolean) => (on ? 'visible' : 'none') as 'visible' | 'none'
-    m.setLayoutProperty('lyr-connectivity',     'visibility', vis(layers.connectivity))
-    m.setLayoutProperty('lyr-patches-halo',     'visibility', vis(layers.patches))
-    m.setLayoutProperty('lyr-patches',          'visibility', vis(layers.patches))
-    m.setLayoutProperty('lyr-patches-label',    'visibility', vis(layers.patches))
-    m.setLayoutProperty('lyr-ecoducts-halo',    'visibility', vis(layers.ecoducts))
-    m.setLayoutProperty('lyr-ecoducts',         'visibility', vis(layers.ecoducts))
-    m.setLayoutProperty('lyr-occ-cluster',      'visibility', vis(layers.occurrences))
-    m.setLayoutProperty('lyr-occ-cluster-label','visibility', vis(layers.occurrences))
-    m.setLayoutProperty('lyr-occurrences-halo', 'visibility', vis(layers.occurrences))
-    m.setLayoutProperty('lyr-occurrences',      'visibility', vis(layers.occurrences))
-    m.setLayoutProperty('lyr-rk-heat',  'visibility', vis(layers.roadkill))
-    m.setLayoutProperty('lyr-rk-skull', 'visibility', vis(layers.roadkill))
-    m.setLayoutProperty('lyr-pinch-halo',       'visibility', vis(layers.pinch))
-    m.setLayoutProperty('lyr-pinch',            'visibility', vis(layers.pinch))
+    m.setLayoutProperty('lyr-connectivity',      'visibility', vis(layers.connectivity))
+    m.setLayoutProperty('lyr-patches',            'visibility', vis(layers.patches))
+    m.setLayoutProperty('lyr-ecoducts',           'visibility', vis(layers.ecoducts))
+    m.setLayoutProperty('lyr-occ-cluster',       'visibility', vis(layers.occurrences))
+    m.setLayoutProperty('lyr-occ-cluster-label', 'visibility', vis(layers.occurrences))
+    m.setLayoutProperty('lyr-occurrences',       'visibility', vis(layers.occurrences))
+    m.setLayoutProperty('lyr-rk-skull',          'visibility', vis(layers.roadkill))
+    m.setLayoutProperty('lyr-pinch',              'visibility', vis(layers.pinch))
   }, [mapReady, layers])
 
   // ── fetch occurrences ────────────────────────────────────────────────────
@@ -498,55 +588,64 @@ export function DataMap(props: Props) {
     const m = mapRef.current
     if (!m || !mapReady || !speciesLatin) return
     let cancelled = false
-    const target = bbox ? bboxToCircle(bbox) : viewportCircle(m)
-    if (!target) return
-    fetchInaturalist(speciesLatin, target.center, target.radiusKm, 80)
-      .then(res => {
-        if (cancelled) return
-        const feats = res.results.filter(o => o.location)
-          .map(o => pointFeature(o.location!.lng, o.location!.lat, { id: o.id, date: o.date ?? '', species: speciesLabel }))
-        ;(m.getSource(OCC_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-        onCounts(p => ({ ...p, occurrences: res.total ?? feats.length }))
-      })
-      .catch((err: Error) => setError(err.message))
-    return () => { cancelled = true }
+    const timer = setTimeout(() => {
+      const target = bbox ? bboxToCircle(bbox) : viewportCircle(m)
+      if (!target || cancelled) return
+      fetchInaturalist(speciesLatin, target.center, target.radiusKm, 80)
+        .then(res => {
+          if (cancelled) return
+          const feats = res.results.filter(o => o.location)
+            .map(o => pointFeature(o.location!.lng, o.location!.lat, { id: o.id, date: o.date ?? '', species: speciesLabel }))
+          ;(m.getSource(OCC_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+          onCounts(p => ({ ...p, occurrences: res.total ?? feats.length }))
+        })
+        .catch((err: Error) => setError(err.message))
+    }, 400)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, species, speciesLatin, speciesLabel, bbox, onCounts])
 
-  // ── fetch roadkills from GBIF ─────────────────────────────────────────────
+  // ── fetch roadkills ──────────────────────────────────────────────────────
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
     let cancelled = false
-    fetchGbifRoadkills(bbox, 300)
-      .then(({ total, points }) => {
-        if (cancelled) return
-        const feats = points.map(p => pointFeature(p.lng, p.lat, { id: p.id, date: p.date ?? '', species: p.species ?? '' }))
-        ;(m.getSource(RK_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-        onCounts(prev => ({ ...prev, roadkill: total }))
-      })
-      .catch((err: Error) => setError(err.message))
-    return () => { cancelled = true }
+    const timer = setTimeout(() => {
+      if (cancelled) return
+      const effectiveBbox = bbox ?? viewportBbox(m)
+      fetchRoadkills(effectiveBbox, 200)
+        .then(({ total, points }) => {
+          if (cancelled) return
+          const feats = points.map(p => pointFeature(p.lng, p.lat, { id: p.id, date: p.date ?? '', species: p.species ?? '' }))
+          ;(m.getSource(RK_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+          onCounts(prev => ({ ...prev, roadkill: total }))
+        })
+        .catch((err: Error) => setError(err.message))
+    }, 600)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, bbox, onCounts])
 
   // ── fetch pinch points ───────────────────────────────────────────────────
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
-    const effectiveBbox = bbox ?? viewportBbox(m)
     let cancelled = false
-    fetchPinchPoints(species, effectiveBbox, 8)
-      .then((pps: PinchPoint[]) => {
-        if (cancelled) return
-        const feats = pps.filter(p => p.location)
-          .map(p => pointFeature(p.location.lng, p.location.lat, {
-            id: p.id, score: p.bottleneckScore ?? 0,
-            cover: p.dominantLandCoverAtPoint ?? '',
-            between: Array.isArray(p.betweenPatches) ? p.betweenPatches.join(' ↔ ') : (p.betweenPatches ?? ''),
-          }))
-        ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-      })
-      .catch((err: Error) => setError(err.message))
-    return () => { cancelled = true }
+    const timer = setTimeout(() => {
+      if (cancelled) return
+      const effectiveBbox = bbox ?? viewportBbox(m)
+      fetchPinchPoints(species, effectiveBbox, 8)
+        .then((pps: PinchPoint[]) => {
+          if (cancelled) return
+          const feats = pps.filter(p => p.location)
+            .map(p => pointFeature(p.location.lng, p.location.lat, {
+              id: p.id, score: p.bottleneckScore ?? 0,
+              cover: p.dominantLandCoverAtPoint ?? '',
+              between: Array.isArray(p.betweenPatches) ? p.betweenPatches.join(' ↔ ') : (p.betweenPatches ?? ''),
+            }))
+          ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+        })
+        .catch((err: Error) => setError(err.message))
+    }, 800)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, species, bbox])
 
   // ── fetch connectivity grid ───────────────────────────────────────────────
@@ -560,61 +659,55 @@ export function DataMap(props: Props) {
       return
     }
     let cancelled = false
-    setLoadingCircuit(true)
-    fetchConnectivity(species, bbox)
-      .then(result => {
-        if (cancelled) return
-        const canvas = gridToCanvas(result.currentDensityGrid, result.maxCurrentDensity)
-        const [minLng, minLat, maxLng, maxLat] = result.bbox
-        ;(m.getSource(CONNECTIVITY_SRC) as ImageSource | undefined)?.updateImage({
-          url: canvas.toDataURL(),
-          coordinates: [[minLng,maxLat],[maxLng,maxLat],[maxLng,minLat],[minLng,minLat]],
+    const timer = setTimeout(() => {
+      if (cancelled) return
+      setLoadingCircuit(true)
+      fetchConnectivity(species, bbox)
+        .then(result => {
+          if (cancelled) return
+          const canvas = gridToCanvas(result.currentDensityGrid, result.maxCurrentDensity)
+          const [minLng, minLat, maxLng, maxLat] = result.bbox
+          ;(m.getSource(CONNECTIVITY_SRC) as ImageSource | undefined)?.updateImage({
+            url: canvas.toDataURL(),
+            coordinates: [[minLng,maxLat],[maxLng,maxLat],[maxLng,minLat],[minLng,minLat]],
+          })
         })
-      })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => { if (!cancelled) setLoadingCircuit(false) })
-    return () => { cancelled = true }
+        .catch((err: Error) => setError(err.message))
+        .finally(() => { if (!cancelled) setLoadingCircuit(false) })
+    }, 600)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, species, bbox])
 
   // ── fetch habitat patches ────────────────────────────────────────────────
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
-    const effectiveBbox = bbox ?? viewportBbox(m)
     let cancelled = false
-    fetchHabitatPatches(species, effectiveBbox)
-      .then((patches: HabitatPatch[]) => {
-        if (cancelled) return
-        const feats = patches.filter(p => p.centroid)
-          .map(p => pointFeature(p.centroid.lng, p.centroid.lat, {
-            id: p.id, kind: p.kind, areaHa: p.areaHa,
-            quality: p.habitatQuality, cover: p.dominantLandCover,
-          }))
-        ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-      })
-      .catch((err: Error) => setError(err.message))
-    return () => { cancelled = true }
-  }, [mapReady, species, bbox])
+    const timer = setTimeout(() => {
+      if (cancelled) return
+      const effectiveBbox = bbox ?? viewportBbox(m)
+      fetchHabitatPatches(species, effectiveBbox)
+        .then((patches: HabitatPatch[]) => {
+          if (cancelled) return
+          const feats = patches.filter(p => p.centroid)
+            .map(p => pointFeature(p.centroid.lng, p.centroid.lat, {
+              id: p.id, kind: p.kind, areaHa: p.areaHa,
+              quality: p.habitatQuality, cover: p.dominantLandCover,
+              speciesLabel,
+            }))
+          ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+        })
+        .catch((err: Error) => setError(err.message))
+    }, 200)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [mapReady, species, speciesLabel, bbox])
 
-  // ── two-click bbox capture ───────────────────────────────────────────────
+  // ── drawing mode: cursor + dragPan ───────────────────────────────────────
   useEffect(() => {
-    const m = mapRef.current
-    if (!m || !mapReady) return
-    const handler = (e: MapMouseEvent) => {
-      const blocked = m.queryRenderedFeatures(e.point, {
-        layers: ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
-      })
-      if (blocked.length > 0) return
-      const { lng, lat } = e.lngLat
-      if (!pendingCorner) { setPendingCorner([lng, lat]); return }
-      const [a0, a1] = pendingCorner
-      const newBbox = `${Math.min(a0,lng).toFixed(4)},${Math.min(a1,lat).toFixed(4)},${Math.max(a0,lng).toFixed(4)},${Math.max(a1,lat).toFixed(4)}`
-      setPendingCorner(null)
-      onBboxChange(newBbox)
-    }
-    m.on('click', handler)
-    return () => { m.off('click', handler) }
-  }, [mapReady, pendingCorner, onBboxChange])
+    const m = mapRef.current; if (!m) return
+    m.getCanvas().style.cursor = isDrawing ? 'crosshair' : ''
+    if (!isDrawing) { drawStartRef.current = null; m.dragPan.enable() }
+  }, [isDrawing])
 
   // ── render bbox outline + fit view ──────────────────────────────────────
   useEffect(() => {
@@ -631,50 +724,148 @@ export function DataMap(props: Props) {
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
       <style>{`
+        /* ── popup container ── */
         .maplibregl-popup-content {
-          border-radius: 12px !important;
+          border-radius: 4px !important;
           padding: 0 !important;
           overflow: hidden !important;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08) !important;
-          border: none !important;
+          box-shadow: 0 16px 48px rgba(26,40,24,0.18), 0 4px 16px rgba(0,0,0,0.10) !important;
+          border: 1px solid rgba(0,0,0,0.08) !important;
+          background: #f0eee6 !important;
         }
         .maplibregl-popup-tip { display: none !important; }
-        .maplibregl-popup-close-button { display: none !important; }
-        .maplibregl-ctrl-group { border-radius: 10px !important; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important; }
+
+        /* ── hover popup (tooltip) ── */
+        .maplibregl-popup:not(.wc-popup) .maplibregl-popup-content {
+          padding: 9px 14px !important;
+          background: rgba(240,238,230,0.97) !important;
+          backdrop-filter: blur(12px) !important;
+          border-radius: 3px !important;
+          box-shadow: 0 4px 18px rgba(26,40,24,0.14), 0 1px 4px rgba(0,0,0,0.07) !important;
+        }
+
+        /* ── close button ── */
+        .wc-popup .maplibregl-popup-close-button {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 22px !important;
+          height: 22px !important;
+          top: 7px !important;
+          right: 7px !important;
+          font-size: 15px !important;
+          line-height: 1 !important;
+          color: rgba(240,238,230,0.65) !important;
+          background: rgba(255,255,255,0.1) !important;
+          border-radius: 2px !important;
+          border: none !important;
+          cursor: pointer !important;
+          z-index: 2 !important;
+          transition: background 0.2s, color 0.2s !important;
+        }
+        .wc-popup .maplibregl-popup-close-button:hover {
+          color: #f0eee6 !important;
+          background: rgba(255,255,255,0.22) !important;
+        }
+
+        /* ── nav controls ── */
+        .maplibregl-ctrl-group {
+          border-radius: 3px !important;
+          overflow: hidden;
+          box-shadow: 0 2px 10px rgba(26,40,24,0.14) !important;
+          border: 1px solid rgba(0,0,0,0.09) !important;
+        }
+        .maplibregl-ctrl-group button {
+          background: #f0eee6 !important;
+        }
+        .maplibregl-ctrl-group button:hover {
+          background: #e8e6de !important;
+        }
       `}</style>
       <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
 
-      {/* pending corner toast */}
-      {pendingCorner && (
+      {/* draw mode hint */}
+      {isDrawing && (
         <div style={{
           position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(12px)',
-          border: '1.5px solid rgba(99,102,241,0.3)', borderRadius: '100px',
+          background: 'rgba(26,40,24,0.92)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.1)', borderRadius: '2px',
           padding: '9px 22px', zIndex: 10, pointerEvents: 'none',
-          fontFamily: "'DM Sans', sans-serif", fontSize: '0.78rem', fontWeight: 500, color: '#4338ca',
-          boxShadow: '0 4px 20px rgba(99,102,241,0.18)',
+          fontFamily: "'DM Sans', sans-serif", fontSize: '0.78rem', fontWeight: 500, color: '#f0eee6',
+          boxShadow: '0 4px 18px rgba(26,40,24,0.18)',
           display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap',
         }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0, boxShadow: '0 0 0 3px rgba(99,102,241,0.2)' }} />
-          Click a second corner — circuit analysis runs automatically
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+            <rect x="1" y="1" width="12" height="12" rx="1" stroke="rgba(240,238,230,0.6)" strokeWidth="1.5" strokeDasharray="3 2"/>
+          </svg>
+          Drag on the map to draw your analysis region
         </div>
       )}
+
+      {/* draw region / clear region buttons */}
+      <div style={{
+        position: 'absolute', bottom: 32, right: 16, zIndex: 20,
+        display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end',
+      }}>
+        <button
+          onClick={() => setIsDrawing(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '7px',
+            padding: '8px 14px',
+            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+            fontSize: '0.54rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: isDrawing ? '#f0eee6' : '#1a2818',
+            background: isDrawing ? '#1a2818' : 'rgba(240,238,230,0.97)',
+            border: isDrawing ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
+            borderRadius: '2px', cursor: 'pointer',
+            backdropFilter: 'blur(14px)',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            transition: 'all 0.18s',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="1" width="12" height="12" rx="1"
+              stroke={isDrawing ? 'rgba(240,238,230,0.7)' : 'rgba(42,64,32,0.7)'}
+              strokeWidth="1.5" strokeDasharray="3 2"/>
+          </svg>
+          {isDrawing ? 'Cancel draw' : 'Draw region'}
+        </button>
+        {props.bbox && !isDrawing && (
+          <button
+            onClick={() => props.onBboxChange(null)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 12px',
+              fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+              fontSize: '0.5rem', letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: 'rgba(0,0,0,0.45)',
+              background: 'rgba(240,238,230,0.9)',
+              border: '1px solid rgba(0,0,0,0.09)',
+              borderRadius: '2px', cursor: 'pointer',
+              backdropFilter: 'blur(14px)',
+              boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
+            }}
+          >
+            ✕ Clear region
+          </button>
+        )}
+      </div>
 
       {/* circuit loading indicator */}
       {loadingCircuit && (
         <div style={{
           position: 'absolute', top: 16, right: 60, zIndex: 10,
-          background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(10px)',
-          border: '1.5px solid rgba(236,72,153,0.25)', borderRadius: '100px',
+          background: 'rgba(240,238,230,0.97)', backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(0,0,0,0.09)', borderRadius: '2px',
           padding: '7px 16px', pointerEvents: 'none',
-          fontFamily: "'DM Sans', sans-serif", fontSize: '0.72rem', fontWeight: 500, color: '#be185d',
-          boxShadow: '0 2px 12px rgba(236,72,153,0.15)',
+          fontFamily: "'DM Sans', sans-serif", fontSize: '0.72rem', fontWeight: 500, color: '#2a4020',
+          boxShadow: '0 2px 12px rgba(26,40,24,0.1)',
           display: 'flex', alignItems: 'center', gap: '7px',
         }}>
-          <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-            background: '#ec4899', animation: 'wcPulse 1s ease-in-out infinite' }} />
+          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+            background: '#2a4020', animation: 'wcPulse 1s ease-in-out infinite' }} />
           Running circuit analysis…
-          <style>{`@keyframes wcPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }`}</style>
+          <style>{`@keyframes wcPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }`}</style>
         </div>
       )}
 
@@ -682,9 +873,9 @@ export function DataMap(props: Props) {
       {error && (
         <div style={{
           position: 'absolute', bottom: 90, left: '50%', transform: 'translateX(-50%)',
-          background: '#fff1f2', border: '1.5px solid rgba(244,63,94,0.25)', borderRadius: '100px',
+          background: 'rgba(240,238,230,0.97)', border: '1px solid rgba(124,90,60,0.2)', borderRadius: '2px',
           padding: '8px 18px', zIndex: 10,
-          fontFamily: "'DM Sans', sans-serif", fontSize: '0.75rem', fontWeight: 500, color: '#e11d48',
+          fontFamily: "'DM Sans', sans-serif", fontSize: '0.75rem', fontWeight: 500, color: '#7C5A3C',
         }}>
           {error}
         </div>

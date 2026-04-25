@@ -57,7 +57,7 @@ export default function Footer() {
             ].map(({ heading, links }) => (
               <div key={heading}>
                 <div style={{
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
                   fontSize: '0.6rem',
                   letterSpacing: '0.18em',
                   textTransform: 'uppercase',
@@ -117,7 +117,7 @@ export default function Footer() {
             "Many of them aren't human. We have the seat. We have the tools. Build for them."
           </p>
           <div style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
             fontSize: '0.6rem',
             letterSpacing: '0.12em',
             color: 'rgba(240,238,230,0.2)',

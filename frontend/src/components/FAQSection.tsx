@@ -68,7 +68,7 @@ function FAQItem({ item, index }: { item: typeof FAQS[0]; index: number }) {
       >
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', flex: 1 }}>
           <span style={{
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
             fontSize: '0.58rem',
             color: 'rgba(0,0,0,0.25)',
             letterSpacing: '0.1em',
@@ -139,7 +139,7 @@ export default function FAQSection() {
         <div style={{ marginBottom: '72px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '24px' }}>
           <div>
             <div style={{
-              fontFamily: "'JetBrains Mono', monospace",
+              fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
               fontSize: '0.68rem',
               letterSpacing: '0.22em',
               textTransform: 'uppercase',

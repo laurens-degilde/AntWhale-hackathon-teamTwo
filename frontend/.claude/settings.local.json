@@ -5,7 +5,8 @@
       "Bash(rm -rf \"/Volumes/Umberto Eco's Library/hack/AntWhale-hackathon-teamTwo/frontend/node_modules/.vite\")",
       "Bash(npx vite:*)",
       "Bash(npx tsc:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(xargs sed:*)"
     ]
   }
 }

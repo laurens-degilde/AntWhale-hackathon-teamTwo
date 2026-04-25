@@ -17,7 +17,7 @@
 
 /* section headers inside sidebar */
 .map-side h3 {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif;
   font-size: 0.58rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -102,7 +102,7 @@
   padding: 2px 14px 8px;
 }
 .map-hint code {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif;
   font-size: 0.65rem;
   color: rgba(240,238,230,0.55);
   word-break: break-all;
@@ -117,7 +117,7 @@
 }
 
 .map-preset {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif;
   font-size: 0.58rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
