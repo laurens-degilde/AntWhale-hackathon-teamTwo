@@ -1,16 +1,10 @@
-import { useEffect, useState } from "react";
 
 interface HeroSectionProps {
   onEnterApp: () => void;
 }
 
 export default function HeroSection({ onEnterApp }: HeroSectionProps) {
-  const [animIn, setAnimIn] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setAnimIn(true), 80);
-    return () => clearTimeout(t);
-  }, []);
+  const animIn = true;
 
   return (
     <>
