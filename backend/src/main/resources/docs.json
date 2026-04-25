@@ -1,7 +1,7 @@
 {
   "name": "corridor-api",
   "version": "0.2.0",
-  "description": "Wildlife corridor analysis backend. Stateless JSON API covering data assembly (OSM, GBIF, iNat, Waarneming verkeerslachtoffers, Sentinel-2, Copernicus, BRT/BGT, NNN, Atlas Natuurlijk Kapitaal, Kadaster, Rijkswaterstaat ecoducts), per-species resistance surfaces with peer-reviewed citations, connectivity analysis (current density + pinch points), intervention classification with cost & cost-effectiveness ranking, and output generation (GeoPackage manifest, technical report, landowner letters, subsidy applications, stakeholder map), plus stateless change detection.",
+  "description": "Wildlife corridor analysis backend. Stateless JSON API covering data assembly (OSM, GBIF, iNat, Sentinel-2, Copernicus, BRT/BGT, NNN, Atlas Natuurlijk Kapitaal, Kadaster, Rijkswaterstaat ecoducts), per-species resistance surfaces with peer-reviewed citations, connectivity analysis (current density + pinch points), intervention classification with cost & cost-effectiveness ranking, and output generation (GeoPackage manifest, technical report, landowner letters, subsidy applications, stakeholder map), plus stateless change detection.",
   "rateLimit": {"requestsPerMinute": 10, "scope": "per IP", "applies": "all /api/** except /api/health and /api/docs"},
   "errorEnvelope": {"error": "string", "status": "number", "timestamp": "ISO-8601"},
   "bboxFormats": {
@@ -23,9 +23,6 @@
     {"method": "GET", "path": "/api/species-occurrences", "description": "Species observations from GBIF.",
      "params": {"taxonKey": "long (required)", "lat": "number?", "lng": "number?", "radiusKm": "number?", "dateAfter": "YYYY-MM-DD?", "dateBefore": "YYYY-MM-DD?", "limit": "int (≤300)", "offset": "int"},
      "source": "gbif"},
-    {"method": "GET", "path": "/api/waarneming-roadkills", "description": "STUB. Waarneming.nl verkeerslachtoffers feed; needs partner token in production.",
-     "params": {"limit": "int (≤500)"}, "source": "waarneming-verkeerslachtoffers", "stub": true},
-
     {"method": "GET", "path": "/api/land-cover", "description": "STUB. Copernicus CORINE-style land-cover summary.",
      "params": {"bbox": "string (required)", "resolution": "100m | 10m"}, "source": "copernicus", "stub": true},
     {"method": "GET", "path": "/api/sentinel2-imagery", "description": "STUB. Sentinel-2 L2A item references via Element 84 STAC.",

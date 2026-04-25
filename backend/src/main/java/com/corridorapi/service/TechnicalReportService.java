@@ -65,7 +65,6 @@ public class TechnicalReportService {
                 "Sentinel-2 L2A (Element 84 STAC)",
                 "GBIF",
                 "iNaturalist",
-                "Waarneming.nl verkeerslachtoffers",
                 "Rijkswaterstaat ecoduct inventory",
                 "PDOK BRT/BGT topography",
                 "Provincial NNN layers",

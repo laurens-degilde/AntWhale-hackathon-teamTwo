@@ -26,7 +26,6 @@ need no auth. The app boots on `http://localhost:8080`.
 | `/api/inaturalist-occurrences` (general iNat) | live |
 | `/api/species-occurrences` (GBIF) | live |
 | `/api/osm-features` (Overpass) | live |
-| `/api/waarneming-roadkills` | **stub** — needs Stichting Observation partner token |
 | `/api/land-cover` (Copernicus) | **stub** — see `// TODO` in `LandCoverService` |
 | `/api/sentinel2-imagery` | **stub** — wire Element 84 STAC `/v1/search` |
 | `/api/brt-bgt` | **stub** — wire PDOK BRT/BGT WFS |
@@ -73,7 +72,6 @@ curl -s 'localhost:8080/api/inaturalist-occurrences?taxonName=Meles%20meles&plac
 curl -s 'localhost:8080/api/osm-features?bbox=52.10,5.70,52.20,5.85&featureTypes=roads,waterways,fences' | jq '.featureCount'
 
 # Stubs
-curl -s 'localhost:8080/api/waarneming-roadkills?limit=5' | jq
 curl -s 'localhost:8080/api/land-cover?bbox=5.6,52.0,5.9,52.3' | jq
 curl -s 'localhost:8080/api/sentinel2-imagery?bbox=5.6,52.0,5.9,52.3&dateAfter=2025-09-01&maxCloudCoverPct=15' | jq
 curl -s 'localhost:8080/api/brt-bgt?bbox=5.6,52.0,5.9,52.3&dataset=BGT' | jq
