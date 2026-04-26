@@ -50,13 +50,21 @@ public class PinchPointService {
                 .pinchPoints(picks)
                 .status("OK")
                 .build();
-        } catch (IllegalStateException tooFew) {
-            log.warn("Pinch points skipped: {}", tooFew.getMessage());
+        } catch (IllegalStateException ex) {
+            // Reactor's RetryExhaustedException also extends IllegalStateException — distinguish so
+            // the user sees a real error instead of a fake "no habitat" message when Overpass throttles.
+            String msg = ex.getMessage();
+            boolean isRetryExhausted = msg != null && msg.startsWith("Retries exhausted");
+            if (isRetryExhausted) {
+                log.warn("Pinch-points failed: upstream retries exhausted ({})", msg);
+                throw ex; // let GlobalExceptionHandler.handleIllegalState unwrap to the real upstream cause
+            }
+            log.warn("Pinch points skipped: {}", msg);
             return PinchPointResponse.builder()
                 .species(species.getKey())
                 .bbox(List.of(bbox[0], bbox[1], bbox[2], bbox[3]))
                 .topN(0)
-                .methodology(tooFew.getMessage())
+                .methodology(msg)
                 .pinchPoints(List.of())
                 .status("INSUFFICIENT_HABITAT")
                 .build();

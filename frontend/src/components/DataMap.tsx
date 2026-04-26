@@ -46,6 +46,7 @@ const ECODUCTS_SRC     = 'src-ecoducts'
 const OCC_SRC          = 'src-occurrences'
 const RK_SRC           = 'src-roadkill'
 const PINCH_SRC        = 'src-pinch'
+const CRITICAL_PINCH_SRC = 'src-pinch-critical'
 const BBOX_SRC         = 'src-bbox'
 const PATCHES_SRC      = 'src-patches'
 const CONNECTIVITY_SRC = 'src-connectivity'
@@ -265,6 +266,7 @@ export function DataMap(props: Props) {
   const [mapReady,        setMapReady]       = useState(false)
   const [error,           setError]          = useState<string | null>(null)
   const [isDrawing,       setIsDrawing]      = useState(false)
+  const [criticalPinches, setCriticalPinches] = useState<PointFeature[]>([])
   const [loadingCircuit,  setLoadingCircuit] = useState(false)
   const [loadingPinch,    setLoadingPinch]    = useState(false)
   const [pendingCorner,   setPendingCorner]   = useState<[number, number] | null>(null)
@@ -310,6 +312,7 @@ export function DataMap(props: Props) {
       m.addSource(OCC_SRC,          { type: 'geojson', data: emptyFc(), cluster: true, clusterMaxZoom: 11, clusterRadius: 45 })
       m.addSource(RK_SRC,           { type: 'geojson', data: emptyFc() })
       m.addSource(PINCH_SRC,        { type: 'geojson', data: emptyFc() })
+      m.addSource(CRITICAL_PINCH_SRC, { type: 'geojson', data: emptyFc() })
       m.addSource(PATCHES_SRC,      { type: 'geojson', data: emptyFc() })
       m.addSource(BBOX_SRC,         { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
       m.addSource(CONNECTIVITY_SRC, {
@@ -438,6 +441,15 @@ export function DataMap(props: Props) {
         },
         paint: { 'icon-opacity': 0.95 },
       })
+      m.addLayer({ id: 'lyr-pinch-critical', type: 'symbol', source: CRITICAL_PINCH_SRC,
+        layout: {
+          'icon-image': 'toolbox-icon',
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 6, 0.14, 10, 0.20, 14, 0.28],
+          'icon-anchor': 'bottom',
+          'icon-allow-overlap': true,
+        },
+        paint: { 'icon-opacity': 0.95 },
+      })
 
       // ── hover popup ──────────────────────────────────────────────────────
       const hoverPop = new maplibregl.Popup({
@@ -498,11 +510,13 @@ export function DataMap(props: Props) {
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
         openPopup(ecoductHtml(f.properties as Record<string, string>), lng, lat)
       })
-      m.on('click', 'lyr-pinch', (e) => {
+      const onPinchClick = (e: maplibregl.MapLayerMouseEvent) => {
         const f = e.features?.[0]; if (!f) return
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
         openPopup(pinchHtml(f.properties as Record<string, string>), lng, lat)
-      })
+      }
+      m.on('click', 'lyr-pinch', onPinchClick)
+      m.on('click', 'lyr-pinch-critical', onPinchClick)
       m.on('click', 'lyr-patches', (e) => {
         const f = e.features?.[0]; if (!f) return
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
@@ -533,7 +547,7 @@ export function DataMap(props: Props) {
         if (!isDrawingRef.current) return
         if (reportModeRef.current) return
         const blocked = m.queryRenderedFeatures(e.point, {
-          layers: ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
+          layers: ['lyr-ecoducts','lyr-pinch','lyr-pinch-critical','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
         })
         if (blocked.length > 0) return
         e.preventDefault()
@@ -689,6 +703,7 @@ export function DataMap(props: Props) {
     m.setLayoutProperty('lyr-occurrences',       'visibility', vis(layers.occurrences))
     m.setLayoutProperty('lyr-rk-skull',          'visibility', vis(layers.roadkill))
     m.setLayoutProperty('lyr-pinch',              'visibility', vis(layers.pinch))
+    m.setLayoutProperty('lyr-pinch-critical',     'visibility', vis(layers.pinch))
   }, [mapReady, layers])
 
   // ── fetch occurrences ────────────────────────────────────────────────────
@@ -699,8 +714,7 @@ export function DataMap(props: Props) {
     if (!m || !mapReady || !speciesLatin) return
     let cancelled = false
     const timer = setTimeout(() => {
-      const target = bbox ? bboxToCircle(bbox) : viewportCircle(m)
-      if (!target || cancelled) return
+      if (cancelled) return
       fetchInaturalistByPlace(speciesLatin, 7506, 80)
           .then(res => {
             if (cancelled) return
@@ -740,13 +754,54 @@ export function DataMap(props: Props) {
       return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, onCounts])
 
-  // ── fetch pinch points ───────────────────────────────────────────────────
+  // ── fetch pre-computed critical pinches (≥95%) — served from JSON, instant ──
+  // Polls every 5s for the first ~5 minutes so first-boot users see entries appear as the
+  // warmer fills the file (warmer writes after every successful combo).
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !mapReady) return
+    let cancelled = false
+    let lastCount = -1
+    const load = () => fetchCriticalPinches(species, 0.95)
+      .then(pinches => {
+        if (cancelled) return
+        if (pinches.length !== lastCount) {
+          lastCount = pinches.length
+          console.log(`[critical pinches] ${species}: ${pinches.length} ≥95%`)
+          setCriticalPinches(pinches.map(p => pointFeature(p.lng, p.lat, {
+            id: p.region + ':' + p.id,
+            score: p.score,
+            cover: p.cover ?? '',
+            between: p.between ?? '',
+            coords: `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`,
+          })))
+        }
+      })
+      .catch(e => console.warn('[critical pinches] failed:', e))
+    setCriticalPinches([])
+    load()
+    const interval = setInterval(load, 5000)
+    // After 5 min the warmer should be done; stop polling.
+    const stop = setTimeout(() => clearInterval(interval), 5 * 60 * 1000)
+    return () => { cancelled = true; clearInterval(interval); clearTimeout(stop) }
+  }, [mapReady, species])
+
+  // Push criticalPinches into the dedicated source whenever it changes.
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !mapReady) return
+    ;(m.getSource(CRITICAL_PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(criticalPinches))
+  }, [mapReady, criticalPinches])
+
+  // ── fetch bbox-filtered pinch points (also from the file, all scores) ──
+  // Same backend file as the always-on critical layer; here we filter by bbox + show every
+  // score so the user sees more detail inside the selected region. Instant — no Circuitscape.
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
     if (!bbox) {
       ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(emptyFc())
-      onCounts(prev => ({ ...prev, pinch: 0 }))
+      onCounts(prev => ({ ...prev, pinch: criticalPinches.length }))
       return
     }
     let cancelled = false
@@ -798,7 +853,6 @@ export function DataMap(props: Props) {
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
-      setLoadingCircuit(true)
       fetchConnectivity(species, bbox)
         .then(result => {
           if (cancelled) return
@@ -810,24 +864,19 @@ export function DataMap(props: Props) {
           })
         })
         .catch((err: Error) => setError(err.message))
-        .finally(() => { if (!cancelled) setLoadingCircuit(false) })
     }, 600)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, species, bbox])
 
   // ── fetch habitat patches ────────────────────────────────────────────────
+  // Always NL-wide context, like roadkills/occurrences. Doesn't narrow with bbox selection.
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
-    if (!bbox) {
-      ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(emptyFc())
-      return
-    }
-    const effectiveBbox = bbox ?? viewportBbox(m)
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
-      fetchHabitatPatches(species, effectiveBbox)
+      fetchHabitatPatches(species, '3.2,50.7,7.2,53.6')
           .then((patches: HabitatPatch[]) => {
             if (cancelled) return
             const feats = patches.filter(p => p.centroid)
@@ -840,7 +889,7 @@ export function DataMap(props: Props) {
           .catch((err: Error) => setError(err.message))
     }, 200)
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [mapReady, species, bbox])
+  }, [mapReady, species])
 
   // ── drawing mode: cursor + dragPan ───────────────────────────────────────
   useEffect(() => {
@@ -1007,8 +1056,6 @@ export function DataMap(props: Props) {
         )}
       </div>
 
-      {/* loading spinner — centered over the map while pinch / connectivity solve runs */}
-      {(loadingCircuit || loadingPinch) && (
       {/* draw region / clear region buttons */}
       <div style={{
         position: 'absolute', bottom: 32, right: 16, zIndex: 20,
@@ -1058,23 +1105,6 @@ export function DataMap(props: Props) {
         )}
       </div>
 
-      {/* circuit loading indicator */}
-      {loadingCircuit && (
-        <div style={{
-          position: 'absolute', top: 16, right: 60, zIndex: 10,
-          background: 'rgba(240,238,230,0.97)', backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(0,0,0,0.09)', borderRadius: '2px',
-          padding: '7px 16px', pointerEvents: 'none',
-          fontFamily: "'DM Sans', sans-serif", fontSize: '0.72rem', fontWeight: 500, color: '#2a4020',
-          boxShadow: '0 2px 12px rgba(26,40,24,0.1)',
-          display: 'flex', alignItems: 'center', gap: '7px',
-        }}>
-          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-            background: '#2a4020', animation: 'wcPulse 1s ease-in-out infinite' }} />
-          Running circuit analysis…
-          <style>{`@keyframes wcPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }`}</style>
-        </div>
-      )}
 
       {/* error */}
       {error && (
@@ -1091,14 +1121,3 @@ export function DataMap(props: Props) {
   )
 }
 
-function viewportCircle(m: maplibregl.Map) {
-  const c = m.getCenter(), b = m.getBounds()
-  const dLat = (b.getNorth() - b.getSouth()) * 111
-  const dLng = (b.getEast() - b.getWest()) * 111 * Math.cos(c.lat * Math.PI / 180)
-  return { center: { lat: c.lat, lng: c.lng }, radiusKm: Math.round(Math.min(50, Math.max(2, 0.5 * Math.sqrt(dLat*dLat + dLng*dLng))) * 10) / 10 }
-}
-
-function viewportBbox(m: maplibregl.Map): string {
-  const b = m.getBounds()
-  return `${b.getWest().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getNorth().toFixed(3)}`
-}

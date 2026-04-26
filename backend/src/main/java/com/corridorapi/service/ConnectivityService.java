@@ -45,8 +45,13 @@ public class ConnectivityService {
                     + "on a %d×%d resistance raster derived from live OSM landuse + roads + barriers.",
                     Math.min(out.patches().size(), 8), out.width(), out.height()))
                 .build();
-        } catch (IllegalStateException tooFew) {
-            log.warn("Connectivity skipped: {}", tooFew.getMessage());
+        } catch (IllegalStateException ex) {
+            String msg = ex.getMessage();
+            if (msg != null && msg.startsWith("Retries exhausted")) {
+                log.warn("Connectivity failed: upstream retries exhausted ({})", msg);
+                throw ex;
+            }
+            log.warn("Connectivity skipped: {}", msg);
             return ConnectivityResponse.builder()
                 .species(species.getKey())
                 .bbox(List.of(bbox[0], bbox[1], bbox[2], bbox[3]))
@@ -58,7 +63,7 @@ public class ConnectivityService {
                 .maxCurrentDensity(0.0)
                 .currentDensityGrid(List.of())
                 .status("INSUFFICIENT_HABITAT")
-                .message(tooFew.getMessage())
+                .message(msg)
                 .build();
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) Thread.currentThread().interrupt();

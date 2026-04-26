@@ -41,14 +41,31 @@ public class OsmRasteriserService {
         String[][] cells;       // [row=y][col=x], y=0 is top (north)
     }
 
+    /**
+     * Bbox area (deg²) above which we skip individual building footprints from the Overpass query.
+     * Building polygons dominate response size in dense areas — a 25 km × 15 km bbox in NL can
+     * exceed 128 MB just from buildings — and at 64×64 resolution each grid cell is ~250–600m
+     * wide, so individual buildings are sub-pixel anyway. The `landuse=residential` polygons
+     * we still fetch are enough to mark urban cells at this resolution.
+     */
+    private static final double DROP_BUILDINGS_AREA_DEG2 = 0.02;
+
     public LandCoverGrid rasterise(double[] bbox, int width, int height) {
         double minLng = bbox[0], minLat = bbox[1], maxLng = bbox[2], maxLat = bbox[3];
+        double areaDeg2 = (maxLng - minLng) * (maxLat - minLat);
+        boolean includeBuildings = areaDeg2 <= DROP_BUILDINGS_AREA_DEG2;
+
+        List<String> featureTypes = includeBuildings
+            ? List.of("landuse", "waterways", "roads", "fences", "buildings")
+            : List.of("landuse", "waterways", "roads", "fences");
+        if (!includeBuildings) {
+            log.info("Bbox area {} deg² > {} — skipping buildings to keep response under buffer limit",
+                String.format("%.4f", areaDeg2), DROP_BUILDINGS_AREA_DEG2);
+        }
 
         // OsmFeaturesService takes Overpass-order: south,west,north,east
         String overpassBbox = String.format("%f,%f,%f,%f", minLat, minLng, maxLat, maxLng);
-        Map<String, Object> fc = osmFeatures.fetch(
-            overpassBbox,
-            List.of("landuse", "waterways", "roads", "fences", "buildings"));
+        Map<String, Object> fc = osmFeatures.fetch(overpassBbox, featureTypes);
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> features = (List<Map<String, Object>>) fc.getOrDefault("features", List.of());

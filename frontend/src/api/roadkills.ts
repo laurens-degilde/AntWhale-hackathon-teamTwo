@@ -1,6 +1,3 @@
-import { getJson } from '../lib/http'
-import { bboxToCircle } from './occurrences'
-
 export interface RoadkillPoint {
   id: number
   lat: number
@@ -9,51 +6,53 @@ export interface RoadkillPoint {
   species?: string
 }
 
-interface RoadkillObservation {
-  id: number
-  observedOn?: string
-  taxon?: { name?: string; commonName?: string }
-  location?: { lat: number; lng: number }
+interface GbifResult {
+  key: number
+  decimalLatitude?: number
+  decimalLongitude?: number
+  eventDate?: string
+  scientificName?: string
+  vernacularName?: string
+  species?: string
 }
 
-interface RoadkillResponse {
-  total: number
-  page: number
-  results: RoadkillObservation[]
+interface GbifResponse {
+  count: number
+  results: GbifResult[]
 }
 
 /**
- * Fetch roadkill observations via the backend (iNaturalist proxy).
- * When a bbox is supplied, converts it to a center+radius circle.
+ * NL-wide roadkill observations from GBIF.
+ *   GET https://api.gbif.org/v1/occurrence/search
+ *     ?country=NL
+ *     &basisOfRecord=HUMAN_OBSERVATION
+ *     &q=roadkill
+ *     &limit=<n>
+ *
+ * No auth, no rate limit worth caring about. Called directly from the browser.
  */
 export async function fetchRoadkills(
-  bbox?: string | null,
-  limit = 200,
+  limit = 300,
 ): Promise<{ total: number; points: RoadkillPoint[] }> {
-  const params: Record<string, string | number> = {
-    perPage: Math.min(limit, 200),
-  }
-
-  if (bbox) {
-    const circle = bboxToCircle(bbox)
-    if (circle) {
-      params.lat = circle.center.lat
-      params.lng = circle.center.lng
-      params.radius = circle.radiusKm
-    }
-  }
-
-  const data = await getJson<RoadkillResponse>('/api/roadkills', params)
+  const params = new URLSearchParams({
+    country: 'NL',
+    basisOfRecord: 'HUMAN_OBSERVATION',
+    q: 'roadkill',
+    limit: String(Math.min(limit, 300)),
+  })
+  const res = await fetch(`https://api.gbif.org/v1/occurrence/search?${params}`)
+  if (!res.ok) throw new Error(`GBIF ${res.status}`)
+  const data: GbifResponse = await res.json()
 
   const points: RoadkillPoint[] = data.results
-    .filter(r => r.location)
+    .filter(r => r.decimalLatitude != null && r.decimalLongitude != null)
     .map(r => ({
-      id: r.id,
-      lat: r.location!.lat,
-      lng: r.location!.lng,
-      date: r.observedOn,
-      species: r.taxon?.commonName ?? r.taxon?.name,
+      id: r.key,
+      lat: r.decimalLatitude!,
+      lng: r.decimalLongitude!,
+      date: r.eventDate,
+      species: r.vernacularName ?? r.species ?? r.scientificName,
     }))
 
-  return { total: data.total, points }
+  return { total: data.count, points }
 }
