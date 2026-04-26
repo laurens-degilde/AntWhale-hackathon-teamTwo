@@ -6,7 +6,15 @@
       "Bash(npx vite:*)",
       "Bash(npx tsc:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(xargs sed:*)"
+      "Bash(xargs sed:*)",
+      "Bash(curl:*)",
+      "Bash(java -version)",
+      "Bash(/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home/bin/java -version)",
+      "Read(//Volumes/Umberto Eco's Library/hack/AntWhale-hackathon-teamTwo/backend/**)",
+      "Bash(JAVA_HOME=/opt/homebrew/opt/openjdk@21 mvn spring-boot:run)",
+      "Bash(echo \"Backend PID: $!\")",
+      "Bash(lsof -ti:8080)",
+      "Bash(xargs kill:*)"
     ]
   }
 }

@@ -6,23 +6,78 @@ interface NGO {
   country: 'NL' | 'EU'
   focus: string
   note: string
+  url: string
+  image: string
 }
 
-const NL_NGOS: NGO[] = [
-  { name: 'Natuurmonumenten',   country: 'NL', focus: 'Nature reserves + connectivity', note: '370+ reserves, actively doing corridor work' },
-  { name: 'Zoogdiervereniging', country: 'NL', focus: 'Mammals & road-kill data',       note: 'Owns road-kill data & badger/otter expertise' },
-  { name: 'ARK Rewilding',      country: 'NL', focus: 'Rewilding corridors',             note: 'Landscape-scale connectivity & rewilding' },
-  { name: 'Landschappen NL',    country: 'NL', focus: 'Provincial landscape trusts',     note: 'Umbrella for 12 provincial trusts' },
+const ALL_NGOS: NGO[] = [
+  {
+    name: 'Natuurmonumenten',
+    country: 'NL',
+    focus: 'Nature reserves & connectivity',
+    note: '370+ reserves, actively doing corridor work across the Netherlands.',
+    url: 'https://www.natuurmonumenten.nl',
+    image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&q=80&fit=crop',
+  },
+  {
+    name: 'Zoogdiervereniging',
+    country: 'NL',
+    focus: 'Mammals & road-kill data',
+    note: 'Owns the road-kill database and deep badger/otter expertise.',
+    url: 'https://www.zoogdiervereniging.nl',
+    image: 'https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=600&q=80&fit=crop',
+  },
+  {
+    name: 'ARK Rewilding',
+    country: 'NL',
+    focus: 'Rewilding corridors',
+    note: 'Landscape-scale connectivity and rewilding — the Dutch vanguard.',
+    url: 'https://www.ark.eu',
+    image: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=600&q=80&fit=crop',
+  },
+  {
+    name: 'Landschappen NL',
+    country: 'NL',
+    focus: 'Provincial landscape trusts',
+    note: 'Umbrella for 12 provincial trusts managing regional habitat networks.',
+    url: 'https://www.landschappennl.nl',
+    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80&fit=crop',
+  },
+  {
+    name: 'Rewilding Europe',
+    country: 'EU',
+    focus: 'Large-scale rewilding',
+    note: '10+ large rewilding landscapes across Europe needing corridor planning.',
+    url: 'https://rewildingeurope.com',
+    image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=600&q=80&fit=crop',
+  },
+  {
+    name: 'WWF European Policy',
+    country: 'EU',
+    focus: 'Nature Restoration Law',
+    note: 'Lead implementer of the EU Nature Restoration Law (2024).',
+    url: 'https://www.wwf.eu',
+    image: 'https://images.unsplash.com/photo-1564349683136-77e08dba1ef7?w=600&q=80&fit=crop',
+  },
+  {
+    name: 'EuroNatur',
+    country: 'EU',
+    focus: 'Green Belt corridor',
+    note: 'Former Iron Curtain as Europe\'s longest wildlife corridor — Balkan advocacy.',
+    url: 'https://www.euronatur.org',
+    image: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=600&q=80&fit=crop',
+  },
+  {
+    name: 'Wetlands International',
+    country: 'EU',
+    focus: 'Wetland connectivity',
+    note: 'Connectivity for otters, amphibians, and waterbirds across Europe\'s wetlands.',
+    url: 'https://www.wetlands.org',
+    image: 'https://images.unsplash.com/photo-1569982175971-d92b01cf8694?w=600&q=80&fit=crop',
+  },
 ]
 
-const EU_NGOS: NGO[] = [
-  { name: 'Rewilding Europe',       country: 'EU', focus: 'Large-scale rewilding',      note: '10+ large rewilding landscapes' },
-  { name: 'WWF European Policy',    country: 'EU', focus: 'Nature Restoration Law',     note: 'EU NRL implementation lead' },
-  { name: 'EuroNatur',              country: 'EU', focus: 'Green Belt corridor',         note: 'Balkan & Iron Curtain corridor advocacy' },
-  { name: 'Wetlands International', country: 'EU', focus: 'Wetland connectivity',        note: 'Otters, amphibians, waterbirds' },
-]
-
-function NGORow({ ngo, index, offset = 0 }: { ngo: NGO; index: number; offset?: number }) {
+function NGOCard({ ngo, index }: { ngo: NGO; index: number }) {
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -30,73 +85,153 @@ function NGORow({ ngo, index, offset = 0 }: { ngo: NGO; index: number; offset?: 
   useEffect(() => {
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) setVisible(true) },
-      { threshold: 0.1 }
+      { threshold: 0.08 }
     )
     if (ref.current) obs.observe(ref.current)
     return () => obs.disconnect()
   }, [])
 
   return (
-    <div
-      ref={ref}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        borderTop: '1px solid rgba(0,0,0,0.09)',
-        padding: '20px 0',
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(20px)',
-        transition: `opacity 0.55s ${(index + offset) * 0.07}s, transform 0.55s ${(index + offset) * 0.07}s`,
-        cursor: 'default',
-      }}
+    <a
+      href={ngo.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ textDecoration: 'none' }}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '4px' }}>
-        <span style={{
+      <div
+        ref={ref}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '4px',
+          height: '320px',
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(28px)',
+          transition: `opacity 0.6s ${index * 0.07}s ease, transform 0.6s ${index * 0.07}s ease`,
+          cursor: 'pointer',
+        }}
+      >
+        {/* Background image */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `url(${ngo.image})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          transform: hovered ? 'scale(1.06)' : 'scale(1)',
+          transition: 'transform 0.55s ease',
+        }} />
+
+        {/* Gradient overlay — always dark at bottom */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: hovered
+            ? 'linear-gradient(to top, rgba(10,22,8,0.96) 0%, rgba(10,22,8,0.6) 55%, rgba(10,22,8,0.2) 100%)'
+            : 'linear-gradient(to top, rgba(10,22,8,0.92) 0%, rgba(10,22,8,0.45) 55%, rgba(10,22,8,0.08) 100%)',
+          transition: 'background 0.4s ease',
+        }} />
+
+        {/* Country badge */}
+        <div style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
           fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-          fontSize: '0.6rem',
-          color: 'rgba(0,0,0,0.28)',
-          letterSpacing: '0.1em',
-          flexShrink: 0,
-        }}>
-          {String(index + 1 + offset).padStart(2, '0')}
-        </span>
-        <span style={{
-          fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-          fontSize: 'clamp(0.95rem, 1.4vw, 1.15rem)',
+          fontSize: '0.55rem',
           fontWeight: 700,
-          letterSpacing: '0.04em',
+          letterSpacing: '0.18em',
           textTransform: 'uppercase',
-          color: hovered ? '#2a4020' : '#111',
-          transition: 'color 0.2s',
+          color: ngo.country === 'NL' ? '#4a9e5c' : '#7ec8e3',
+          background: 'rgba(10,22,8,0.7)',
+          padding: '4px 9px',
+          borderRadius: '2px',
+          border: `1px solid ${ngo.country === 'NL' ? 'rgba(74,158,92,0.4)' : 'rgba(126,200,227,0.4)'}`,
+          backdropFilter: 'blur(4px)',
         }}>
-          {ngo.name}
-        </span>
-      </div>
-      <div style={{ paddingLeft: '32px' }}>
-        <div style={{
-          fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-          fontSize: '0.62rem',
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: '#2a4020',
-          opacity: 0.7,
-          marginBottom: '3px',
-        }}>
-          {ngo.focus}
+          {ngo.country === 'NL' ? 'Netherlands' : 'Europe'}
         </div>
+
+        {/* Bottom content */}
         <div style={{
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: '0.8rem',
-          color: 'rgba(0,0,0,0.45)',
-          fontStyle: 'italic',
-          lineHeight: 1.5,
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '24px 22px',
         }}>
-          {ngo.note}
+          {/* Focus tag */}
+          <div style={{
+            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+            fontSize: '0.55rem',
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: '#4a9e5c',
+            marginBottom: '8px',
+            opacity: hovered ? 1 : 0.8,
+            transition: 'opacity 0.3s',
+          }}>
+            {ngo.focus}
+          </div>
+
+          {/* Name */}
+          <div style={{
+            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+            fontSize: 'clamp(1rem, 1.4vw, 1.2rem)',
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: '#f0eee6',
+            lineHeight: 1.1,
+            marginBottom: '10px',
+          }}>
+            {ngo.name}
+          </div>
+
+          {/* Note — slides in on hover */}
+          <div style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: '0.8rem',
+            color: 'rgba(240,238,230,0.72)',
+            lineHeight: 1.55,
+            maxHeight: hovered ? '80px' : '0px',
+            opacity: hovered ? 1 : 0,
+            overflow: 'hidden',
+            transition: 'max-height 0.4s ease, opacity 0.35s ease',
+            marginBottom: hovered ? '12px' : '0',
+          }}>
+            {ngo.note}
+          </div>
+
+          {/* Visit link */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+            fontSize: '0.6rem',
+            fontWeight: 700,
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            color: hovered ? '#4a9e5c' : 'rgba(240,238,230,0.4)',
+            transition: 'color 0.3s',
+          }}>
+            Visit website
+            <span style={{
+              transform: hovered ? 'translateX(4px)' : 'translateX(0)',
+              transition: 'transform 0.3s',
+              display: 'inline-block',
+            }}>↗</span>
+          </div>
         </div>
       </div>
-    </div>
+    </a>
   )
 }
+
+/* ── Donate Banner ────────────────────────────────────────────────── */
 
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%',
@@ -158,7 +293,6 @@ function DonateBanner() {
       gap: '64px',
       alignItems: 'start',
     }}>
-      {/* Left: copy */}
       <div>
         <div style={{
           fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
@@ -179,7 +313,6 @@ function DonateBanner() {
         </p>
       </div>
 
-      {/* Right: form or success */}
       {result ? (
         <div>
           <div style={{
@@ -194,20 +327,22 @@ function DonateBanner() {
               ? 'Running in demo mode — no real invoice was generated.'
               : `Invoice ${result.invoiceNumber ?? result.invoiceId} is ready.`}
           </p>
-          <a
-            href={result.hostedInvoiceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-              fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: '#1a2818', background: '#f0eee6',
-              padding: '12px 24px', borderRadius: '2px', textDecoration: 'none',
-              display: 'inline-block', marginRight: '12px',
-            }}
-          >
-            Open payment link ↗
-          </a>
+          {result.status !== 'demo' && (
+            <a
+              href={result.hostedInvoiceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
+                fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: '#1a2818', background: '#f0eee6',
+                padding: '12px 24px', borderRadius: '2px', textDecoration: 'none',
+                display: 'inline-block', marginRight: '12px',
+              }}
+            >
+              Open payment link ↗
+            </a>
+          )}
           <button
             onClick={() => { setResult(null); setNgoName(''); setEmail(''); setAmount('100') }}
             style={{
@@ -279,6 +414,8 @@ function DonateBanner() {
   )
 }
 
+/* ── Main section ─────────────────────────────────────────────────── */
+
 export default function NGOSection() {
   return (
     <section
@@ -325,60 +462,15 @@ export default function NGOSection() {
           </p>
         </div>
 
-        {/* Two-column NGO list */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px' }}>
-
-          {/* Netherlands */}
-          <div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              marginBottom: '4px',
-              paddingBottom: '16px',
-            }}>
-              <span style={{
-                fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: '#2a4020',
-              }}>
-                Netherlands
-              </span>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(42,64,32,0.2)' }} />
-            </div>
-            {NL_NGOS.map((ngo, i) => (
-              <NGORow key={ngo.name} ngo={ngo} index={i} />
-            ))}
-          </div>
-
-          {/* Europe */}
-          <div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              marginBottom: '4px',
-              paddingBottom: '16px',
-            }}>
-              <span style={{
-                fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: '#2a4020',
-              }}>
-                Europe
-              </span>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(42,64,32,0.2)' }} />
-            </div>
-            {EU_NGOS.map((ngo, i) => (
-              <NGORow key={ngo.name} ngo={ngo} index={i} offset={4} />
-            ))}
-          </div>
+        {/* Card grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '16px',
+        }}>
+          {ALL_NGOS.map((ngo, i) => (
+            <NGOCard key={ngo.name} ngo={ngo} index={i} />
+          ))}
         </div>
 
         {/* Donate banner */}

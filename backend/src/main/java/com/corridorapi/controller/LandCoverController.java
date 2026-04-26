@@ -26,7 +26,7 @@ public class LandCoverController {
         return landCoverService.fetch(b[0], b[1], b[2], b[3], resolution);
     }
 
-    static double[] parseBbox(String bbox) {
+    public static double[] parseBbox(String bbox) {
         String[] parts = bbox.split(",");
         if (parts.length != 4) {
             throw new IllegalArgumentException("bbox must have 4 comma-separated values: minLng,minLat,maxLng,maxLat");

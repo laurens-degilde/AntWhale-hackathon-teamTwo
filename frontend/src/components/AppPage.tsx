@@ -5,12 +5,10 @@ import { DataMap } from "./DataMap";
 import {
   REGION_PRESETS,
   SPECIES,
-  technicalReportPdfUrl,
   type Species,
 } from "../api/technicalReport";
-import tree1Png from "../assets/tree1.png";
+import { API_BASE } from "../lib/http";
 import tree2Png from "../assets/tree2.png";
-import tree3Png from "../assets/tree3.png";
 import ecoductIconPng from "../assets/ecoduct.png";
 import roadkillIconPng from "../assets/roadkill.png";
 import toolboxIconPng from "../assets/toolbox.png";
@@ -1101,6 +1099,11 @@ function ReportFormStyled({ species: initSpecies, bbox: initBbox }: { species: S
   const [language, setLanguage]       = useState<"en" | "nl">("en");
   const [includeLetters, setIncludeLetters] = useState(true);
   const [resistanceModel, setResistanceModel] = useState<"literature" | "conservative" | "permissive">("literature");
+  const [generating, setGenerating]         = useState(false);
+  const [phases, setPhases]                 = useState<Record<string, "idle" | "running" | "done">>({});
+  const [currentMsg, setCurrentMsg]         = useState("");
+  const [downloadToken, setDownloadToken]   = useState<string | null>(null);
+  const [genError, setGenError]             = useState<string | null>(null);
 
   const BBOX_RE = /^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$/;
   const bboxValid = (() => {
@@ -1109,8 +1112,54 @@ function ReportFormStyled({ species: initSpecies, bbox: initBbox }: { species: S
     return maxLng > minLng && maxLat > minLat;
   })();
 
-  const downloadUrl = bboxValid ? technicalReportPdfUrl(species, bbox, "attachment") : "#";
-  const viewUrl     = bboxValid ? technicalReportPdfUrl(species, bbox, "inline")     : "#";
+  function startGeneration() {
+    if (!bboxValid || generating) return;
+    setGenerating(true);
+    setPhases({});
+    setCurrentMsg("Starting…");
+    setDownloadToken(null);
+    setGenError(null);
+
+    const url = `${API_BASE}/api/outputs/report-bundle/stream?species=${encodeURIComponent(species)}&bbox=${encodeURIComponent(bbox)}`;
+    const es = new EventSource(url);
+
+    es.addEventListener("progress", (e: MessageEvent) => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev.phase === "complete") {
+          setDownloadToken(ev.token);
+          setGenerating(false);
+          setCurrentMsg("Bundle ready — download below");
+          setPhases((prev) => ({ ...prev, zip_assembly: "done" }));
+          es.close();
+        } else if (ev.phase === "error") {
+          setGenError(ev.message || "Generation failed. Please retry.");
+          setGenerating(false);
+          es.close();
+        } else if (ev.status === "running") {
+          setCurrentMsg(ev.section || ev.phase);
+          setPhases((prev) => ({ ...prev, [ev.phase]: "running" }));
+        } else if (ev.status === "done") {
+          setPhases((prev) => ({ ...prev, [ev.phase]: "done" }));
+        }
+      } catch { /* ignore parse errors */ }
+    });
+
+    es.onerror = () => {
+      setGenError("Connection lost. Check the server and retry.");
+      setGenerating(false);
+      es.close();
+    };
+  }
+
+  const PHASE_LABELS: { key: string; label: string }[] = [
+    { key: "data_assembly",     label: "Data" },
+    { key: "narrative_report",  label: "AI narrative" },
+    { key: "narrative_letters", label: "Letters" },
+    { key: "pdf_report",        label: "Report PDF" },
+    { key: "pdf_letters",       label: "Letter PDFs" },
+    { key: "zip_assembly",      label: "Bundle" },
+  ];
 
   function applyPreset(id: string) { setPresetId(id); const p = REGION_PRESETS.find((r) => r.id === id); if (p) setBbox(p.bbox); }
   function toggleIntervention(id: string) { setInterventions((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; }); }
@@ -1224,17 +1273,67 @@ function ReportFormStyled({ species: initSpecies, bbox: initBbox }: { species: S
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-        <a href={downloadUrl} aria-disabled={!bboxValid} download={bboxValid ? `corridor-action-plan-${species}.pdf` : undefined} onClick={(e) => { if (!bboxValid) e.preventDefault(); }} style={{ fontFamily: FUTURA, fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: bboxValid ? "#f0eee6" : "rgba(0,0,0,0.2)", background: bboxValid ? "#2E6028" : "rgba(0,0,0,0.06)", padding: "13px 28px", borderRadius: "3px", textDecoration: "none", display: "inline-block", cursor: bboxValid ? "pointer" : "not-allowed", transition: "background 0.2s", boxShadow: bboxValid ? "0 2px 12px rgba(46,96,40,0.25)" : "none" }}>
-          Download PDF
-        </a>
-        <a href={viewUrl} target="_blank" rel="noopener noreferrer" aria-disabled={!bboxValid} onClick={(e) => { if (!bboxValid) e.preventDefault(); }} style={{ fontFamily: FUTURA, fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: bboxValid ? "#2E6028" : "rgba(0,0,0,0.2)", border: `1.5px solid ${bboxValid ? "rgba(46,96,40,0.35)" : "rgba(0,0,0,0.1)"}`, padding: "12px 28px", borderRadius: "3px", textDecoration: "none", display: "inline-block", cursor: bboxValid ? "pointer" : "not-allowed" }}>
-          Open in browser ↗
-        </a>
-        <p style={{ fontFamily: DM_SANS, fontSize: "0.72rem", color: "rgba(0,0,0,0.32)", lineHeight: 1.6, margin: 0 }}>
-          Ranked interventions · cost estimates<br />citations · GIS exports{includeLetters ? " · landowner letters" : ""}
-        </p>
-      </div>
+      {/* ── Generate bundle / progress panel ── */}
+      {!generating && !downloadToken && !genError && (
+        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            onClick={startGeneration}
+            disabled={!bboxValid}
+            style={{ fontFamily: FUTURA, fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: bboxValid ? "#f0eee6" : "rgba(0,0,0,0.2)", background: bboxValid ? "#2E6028" : "rgba(0,0,0,0.06)", padding: "13px 28px", borderRadius: "3px", border: "none", cursor: bboxValid ? "pointer" : "not-allowed", transition: "background 0.2s", boxShadow: bboxValid ? "0 2px 12px rgba(46,96,40,0.25)" : "none" }}
+          >
+            Generate bundle
+          </button>
+          <p style={{ fontFamily: DM_SANS, fontSize: "0.72rem", color: "rgba(0,0,0,0.32)", lineHeight: 1.6, margin: 0 }}>
+            Report PDF · GIS exports · cost estimates<br />{includeLetters ? "Personalised landowner letters · " : ""}subsidy applications · ZIP download
+          </p>
+        </div>
+      )}
+
+      {generating && (
+        <div style={{ background: "rgba(42,64,32,0.04)", border: "1px solid rgba(42,64,32,0.15)", borderRadius: "6px", padding: "18px 20px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px" }}>
+            {PHASE_LABELS.map(({ key, label }) => {
+              const st = phases[key] || "idle";
+              return (
+                <div key={key} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "100px", fontSize: "0.68rem", fontFamily: DM_SANS, fontWeight: st === "done" ? 600 : 400, background: st === "done" ? "rgba(42,64,32,0.12)" : st === "running" ? "rgba(42,64,32,0.07)" : "rgba(0,0,0,0.04)", color: st === "done" ? "#1a4012" : st === "running" ? "#2E6028" : "rgba(0,0,0,0.35)", border: `1px solid ${st === "done" ? "rgba(42,64,32,0.25)" : st === "running" ? "rgba(42,64,32,0.2)" : "rgba(0,0,0,0.08)"}`, transition: "all 0.3s" }}>
+                  {st === "done" && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#1a4012" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  {st === "running" && <span style={{ display: "inline-block", width: "7px", height: "7px", borderRadius: "50%", background: "#2E6028", animation: "pulse 1s ease-in-out infinite" }} />}
+                  {st === "idle" && <span style={{ display: "inline-block", width: "5px", height: "5px", borderRadius: "50%", background: "rgba(0,0,0,0.2)" }} />}
+                  {label}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontFamily: DM_SANS, fontSize: "0.76rem", color: "#2E6028", display: "flex", alignItems: "center", gap: "8px" }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ animation: "spin 1.2s linear infinite", flexShrink: 0 }}><circle cx="7" cy="7" r="5.5" stroke="rgba(46,96,40,0.25)" strokeWidth="1.5"/><path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="#2E6028" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            {currentMsg}
+          </div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }`}</style>
+        </div>
+      )}
+
+      {downloadToken && (
+        <div style={{ background: "rgba(42,64,32,0.05)", border: "1.5px solid rgba(42,64,32,0.25)", borderRadius: "6px", padding: "16px 20px", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: "200px" }}>
+            <div style={{ fontFamily: DM_SANS, fontSize: "0.82rem", fontWeight: 600, color: "#1a2818", marginBottom: "2px" }}>Bundle ready</div>
+            <div style={{ fontFamily: DM_SANS, fontSize: "0.7rem", color: "rgba(0,0,0,0.45)" }}>Report PDF · {includeLetters ? "landowner letters · " : ""}GIS exports · subsidy JSON</div>
+          </div>
+          <a href={`${API_BASE}/api/outputs/report-bundle/download?token=${downloadToken}`} download style={{ fontFamily: FUTURA, fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "#f0eee6", background: "#2E6028", padding: "12px 24px", borderRadius: "3px", textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 2px 12px rgba(46,96,40,0.25)" }}>
+            ↓ Download ZIP
+          </a>
+          <button onClick={() => { setDownloadToken(null); setPhases({}); setCurrentMsg(""); }} style={{ fontFamily: FUTURA, fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(0,0,0,0.4)", background: "none", border: "1px solid rgba(0,0,0,0.12)", padding: "11px 16px", borderRadius: "3px", cursor: "pointer" }}>
+            Re-run
+          </button>
+        </div>
+      )}
+
+      {genError && (
+        <div style={{ background: "rgba(192,57,43,0.05)", border: "1.5px solid rgba(192,57,43,0.25)", borderRadius: "6px", padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><circle cx="8" cy="8" r="7" stroke="#c0392b" strokeWidth="1.5"/><path d="M8 5v4M8 11h.01" stroke="#c0392b" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          <div style={{ flex: 1, fontFamily: DM_SANS, fontSize: "0.76rem", color: "#c0392b" }}>{genError}</div>
+          <button onClick={() => { setGenError(null); setPhases({}); }} style={{ fontFamily: FUTURA, fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#c0392b", background: "none", border: "1px solid rgba(192,57,43,0.3)", padding: "8px 14px", borderRadius: "3px", cursor: "pointer" }}>Retry</button>
+        </div>
+      )}
     </div>
   );
 }
