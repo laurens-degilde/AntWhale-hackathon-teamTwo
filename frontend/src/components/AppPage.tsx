@@ -9,9 +9,7 @@ import {
     type Species,
 } from "../api/technicalReport";
 import { API_BASE } from "../lib/http";
-import tree1Png from "../assets/tree1.png";
 import tree2Png from "../assets/tree2.png";
-import tree3Png from "../assets/tree3.png";
 import ecoductIconPng from "../assets/ecoduct.png";
 import roadkillIconPng from "../assets/roadkill.png";
 import toolboxIconPng from "../assets/toolbox.png";

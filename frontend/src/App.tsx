@@ -6,6 +6,7 @@ import NGOSection from './components/NGOSection'
 import FAQSection from './components/FAQSection'
 import Footer from './components/Footer'
 import AppPage from './components/AppPage'
+import DesktopOnlyGate from './components/DesktopOnlyGate'
 
 function Landing() {
   const navigate = useNavigate()
@@ -27,9 +28,11 @@ function Landing() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/app" element={<AppPage />} />
-    </Routes>
+    <DesktopOnlyGate>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/app" element={<AppPage />} />
+      </Routes>
+    </DesktopOnlyGate>
   )
 }

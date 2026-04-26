@@ -1,5 +1,6 @@
 export const API_BASE =
-  (import.meta.env.VITE_API_BASE as string | undefined) ?? 'http://localhost:8080'
+  (import.meta.env.VITE_API_BASE as string | undefined) ??
+  (import.meta.env.PROD ? '' : 'http://localhost:8080')
 
 export async function getJson<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
   const url = new URL(API_BASE + path)

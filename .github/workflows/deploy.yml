@@ -1,0 +1,37 @@
+name: Deploy to Koyeb
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: koyeb-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install and login to Koyeb CLI
+        uses: koyeb-community/koyeb-actions@v2
+        with:
+          api_token: ${{ secrets.KOYEB_TOKEN }}
+
+      - name: Deploy
+        uses: koyeb/action-git-deploy@v1
+        with:
+          app-name: antwhale-corridor
+          service-name: web
+          service-type: web
+          service-ports: "8080:http"
+          service-routes: "/:8080"
+          service-instance-type: free
+          service-regions: fra
+          git-url: github.com/${{ github.repository }}
+          git-branch: main
+          git-builder: docker
+          git-docker-dockerfile: Dockerfile
