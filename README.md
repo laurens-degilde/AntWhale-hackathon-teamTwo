@@ -1,4 +1,4 @@
-# Wildcross
+# Wildcross -> chasing a principle: nature conservation :)
 <img width="671" height="379" alt="image" src="https://github.com/user-attachments/assets/a87a02c2-e4ab-41d1-81df-6674efbf16b0" />
 <img width="671" height="386" alt="image" src="https://github.com/user-attachments/assets/380c8f9f-936f-412c-9ff9-d2c467f2d5b2" />
 <img width="675" height="373" alt="image" src="https://github.com/user-attachments/assets/237c5e23-f4e9-464e-b0e0-6b7410575e78" />
