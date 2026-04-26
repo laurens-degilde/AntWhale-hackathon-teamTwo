@@ -24,15 +24,11 @@ interface Props {
   bbox: string | null
   layers: { ecoducts: boolean; occurrences: boolean; roadkill: boolean; pinch: boolean; connectivity: boolean; patches: boolean }
   flyTo?: { lat: number; lng: number; zoom: number; _seq: number } | null
-  connectivityOpacity?: number
   onSpeciesChange: (s: Species) => void
   onBboxChange: (b: string | null) => void
   onLayerToggle: (key: keyof Props['layers']) => void
   onCounts: (counts: { occurrences: number; roadkill: number; pinch: number } | ((prev: { occurrences: number; roadkill: number; pinch: number }) => { occurrences: number; roadkill: number; pinch: number })) => void
   onRequestPlan: () => void
-  reportMode?: boolean
-  userReports?: Array<{ id: string; rtype: string; lat: number; lng: number; species: string }>
-  onMapClick?: (lat: number, lng: number) => void
 }
 
 interface PointFeature {
@@ -49,7 +45,6 @@ const CRITICAL_PINCH_SRC = 'src-pinch-critical'
 const BBOX_SRC         = 'src-bbox'
 const PATCHES_SRC      = 'src-patches'
 const CONNECTIVITY_SRC = 'src-connectivity'
-const REPORTS_SRC      = 'src-user-reports'
 
 const NL_CENTER: [number, number] = [5.29, 52.13]
 const BLANK_PNG = (() => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; return c.toDataURL() })()
@@ -252,19 +247,17 @@ function tooltipHtml(isRoadkill: boolean, date: string): string {
 // ── component ─────────────────────────────────────────────────────────────────
 export function DataMap(props: Props) {
   const { species, bbox, layers, flyTo, onBboxChange, onCounts } = props
-  const containerRef  = useRef<HTMLDivElement | null>(null)
-  const mapRef           = useRef<maplibregl.Map | null>(null)
-  const rafRef           = useRef<number | null>(null)
-  const hoverPopRef      = useRef<maplibregl.Popup | null>(null)
-  const clickPopRef      = useRef<maplibregl.Popup | null>(null)
-  const onBboxChangeRef  = useRef(onBboxChange)
-  const isDrawingRef     = useRef(false)
-  const drawStartRef     = useRef<[number, number] | null>(null)
-  const reportModeRef    = useRef(false)
-  const onMapClickRef    = useRef<((lat: number, lng: number) => void) | undefined>(undefined)
-  const [mapReady,        setMapReady]       = useState(false)
-  const [error,           setError]          = useState<string | null>(null)
-  const [isDrawing,       setIsDrawing]      = useState(false)
+  const containerRef    = useRef<HTMLDivElement | null>(null)
+  const mapRef          = useRef<maplibregl.Map | null>(null)
+  const rafRef          = useRef<number | null>(null)
+  const hoverPopRef     = useRef<maplibregl.Popup | null>(null)
+  const clickPopRef     = useRef<maplibregl.Popup | null>(null)
+  const onBboxChangeRef = useRef(onBboxChange)
+  const isDrawingRef    = useRef(false)
+  const drawStartRef    = useRef<[number, number] | null>(null)
+  const [mapReady,        setMapReady]        = useState(false)
+  const [error,           setError]           = useState<string | null>(null)
+  const [isDrawing,       setIsDrawing]       = useState(false)
   const [criticalPinches, setCriticalPinches] = useState<PointFeature[]>([])
 
   const speciesLatin = useMemo(() => SPECIES.find(s => s.value === species)?.latin ?? '', [species])
@@ -272,8 +265,6 @@ export function DataMap(props: Props) {
 
   useEffect(() => { onBboxChangeRef.current = onBboxChange }, [onBboxChange])
   useEffect(() => { isDrawingRef.current = isDrawing }, [isDrawing])
-  useEffect(() => { reportModeRef.current = !!props.reportMode }, [props.reportMode])
-  useEffect(() => { onMapClickRef.current = props.onMapClick }, [props.onMapClick])
 
   // ── init map ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -315,28 +306,10 @@ export function DataMap(props: Props) {
         type: 'image', url: BLANK_PNG,
         coordinates: [[3.2,53.6],[7.2,53.6],[7.2,50.7],[3.2,50.7]],
       })
-      m.addSource(REPORTS_SRC, { type: 'geojson', data: emptyFc() })
 
       // ── connectivity heatmap ──
       m.addLayer({ id: 'lyr-connectivity', type: 'raster', source: CONNECTIVITY_SRC,
         paint: { 'raster-opacity': 0.70, 'raster-resampling': 'linear' } })
-
-      // ── user reports ──
-      m.addLayer({
-        id: 'lyr-user-reports', type: 'circle', source: REPORTS_SRC,
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 6, 12, 10],
-          'circle-color': ['case',
-            ['==', ['get', 'rtype'], 'roadkill'], '#c0392b',
-            ['==', ['get', 'rtype'], 'crossing'], '#4a9e5c',
-            '#B87830',
-          ],
-          'circle-opacity': 0.92,
-          'circle-stroke-width': 2.5,
-          'circle-stroke-color': '#f0eee6',
-          'circle-stroke-opacity': 1,
-        },
-      })
 
       // ── bbox ──
       m.addLayer({ id: 'lyr-bbox-fill', type: 'fill', source: BBOX_SRC,
@@ -427,7 +400,11 @@ export function DataMap(props: Props) {
         paint: { 'icon-opacity': 1 },
       })
 
-      // ── pinch points ──
+      // ── pinch points ── (toolbox icon, our custom asset)
+      m.addLayer({ id: 'lyr-pinch-halo', type: 'circle', source: PINCH_SRC, paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 20, 12, 38],
+        'circle-color': '#f59e0b', 'circle-opacity': 0.14, 'circle-stroke-width': 0,
+      }})
       m.addLayer({ id: 'lyr-pinch', type: 'symbol', source: PINCH_SRC,
         layout: {
           'icon-image': 'toolbox-icon',
@@ -506,13 +483,11 @@ export function DataMap(props: Props) {
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
         openPopup(ecoductHtml(f.properties as Record<string, string>), lng, lat)
       })
-      const onPinchClick = (e: maplibregl.MapLayerMouseEvent) => {
+      m.on('click', 'lyr-pinch', (e) => {
         const f = e.features?.[0]; if (!f) return
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
         openPopup(pinchHtml(f.properties as Record<string, string>), lng, lat)
-      }
-      m.on('click', 'lyr-pinch', onPinchClick)
-      m.on('click', 'lyr-pinch-critical', onPinchClick)
+      })
       m.on('click', 'lyr-patches', (e) => {
         const f = e.features?.[0]; if (!f) return
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
@@ -528,59 +503,6 @@ export function DataMap(props: Props) {
         ).then(zoom => { m.easeTo({ center: [lng, lat], zoom: zoom + 0.5 }) })
       })
 
-      // ── report mode click ─────────────────────────────────────────────────
-      m.on('click', (e: MapMouseEvent) => {
-        if (!reportModeRef.current) return
-        const blocked = m.queryRenderedFeatures(e.point, {
-          layers: ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
-        })
-        if (blocked.length > 0) return
-        onMapClickRef.current?.(e.lngLat.lat, e.lngLat.lng)
-      })
-
-      // ── drag-to-draw bbox ─────────────────────────────────────────────────
-      m.on('mousedown', (e: MapMouseEvent) => {
-        if (!isDrawingRef.current) return
-        if (reportModeRef.current) return
-        const blocked = m.queryRenderedFeatures(e.point, {
-          layers: ['lyr-ecoducts','lyr-pinch','lyr-pinch-critical','lyr-patches','lyr-occurrences','lyr-rk-skull','lyr-occ-cluster'],
-        })
-        if (blocked.length > 0) return
-        e.preventDefault()
-        drawStartRef.current = [e.lngLat.lng, e.lngLat.lat]
-        m.dragPan.disable()
-      })
-      m.on('mousemove', (e: MapMouseEvent) => {
-        if (!isDrawingRef.current || !drawStartRef.current) return
-        const [a0, a1] = drawStartRef.current
-        const { lng, lat } = e.lngLat
-        if (Math.abs(a0 - lng) > 0.0001 || Math.abs(a1 - lat) > 0.0001) {
-          const live = `${Math.min(a0,lng)},${Math.min(a1,lat)},${Math.max(a0,lng)},${Math.max(a1,lat)}`
-          ;(m.getSource(BBOX_SRC) as GeoJSONSource | undefined)?.setData(bboxLine(live))
-        }
-      })
-      m.on('mouseup', (e: MapMouseEvent) => {
-        if (!isDrawingRef.current || !drawStartRef.current) return
-        const [a0, a1] = drawStartRef.current
-        const { lng, lat } = e.lngLat
-        drawStartRef.current = null
-        m.dragPan.enable()
-        setIsDrawing(false)
-        if (Math.abs(a0 - lng) > 0.001 || Math.abs(a1 - lat) > 0.001) {
-          const newBbox = `${Math.min(a0,lng).toFixed(4)},${Math.min(a1,lat).toFixed(4)},${Math.max(a0,lng).toFixed(4)},${Math.max(a1,lat).toFixed(4)}`
-          onBboxChangeRef.current(newBbox)
-        }
-      })
-
-      // ── cluster zoom-in ───────────────────────────────────────────────────
-      m.on('click', 'lyr-occ-cluster', (e) => {
-        const f = e.features?.[0]; if (!f) return
-        const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-        ;(m.getSource(OCC_SRC) as GeoJSONSource).getClusterExpansionZoom(
-          f.properties!.cluster_id as number
-        ).then(zoom => { m.easeTo({ center: [lng, lat], zoom: zoom + 0.5 }) })
-      })
-
       // ── drag-to-draw bbox ─────────────────────────────────────────────────
       m.on('mousedown', (e: MapMouseEvent) => {
         if (!isDrawingRef.current) return
@@ -613,27 +535,10 @@ export function DataMap(props: Props) {
           onBboxChangeRef.current(newBbox)
         }
       })
-      // ── user report hover tooltips ────────────────────────────────────────
-      m.on('mousemove', 'lyr-user-reports', (e) => {
-        const f = e.features?.[0]; if (!f) return
-        const p = f.properties as Record<string, string>
-        const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
-        const typeMap: Record<string,string> = { roadkill: 'Road-kill report', crossing: 'New crossing', observation: 'Observation' }
-        const colorMap: Record<string,string> = { roadkill: '#7C5A3C', crossing: '#2a4020', observation: '#B87830' }
-        const c = colorMap[p.rtype] ?? '#2a4020'
-        hoverPop.setLngLat([lng, lat]).setHTML(
-          `<div style="font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:9px;padding:2px 0">` +
-          `<div>` +
-          `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:11px;font-weight:700;color:${c};text-transform:uppercase;letter-spacing:0.06em">${typeMap[p.rtype] ?? 'Community report'}</div>` +
-          `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;color:rgba(0,0,0,0.4);margin-top:2px;letter-spacing:0.05em">Community · ${p.species && p.species !== 'unknown' ? p.species : 'Species unknown'}</div>` +
-          `</div></div>`
-        ).addTo(m)
-      })
-      m.on('mouseleave', 'lyr-user-reports', () => hoverPop.remove())
 
       // ── cursors ───────────────────────────────────────────────────────────
       const pointerLayers = ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences',
-                             'lyr-rk-skull','lyr-occ-cluster','lyr-user-reports']
+                             'lyr-rk-skull','lyr-occ-cluster']
       pointerLayers.forEach(id => {
         m.on('mouseenter', id, () => { if (!isDrawingRef.current) m.getCanvas().style.cursor = 'pointer' })
         m.on('mouseleave', id, () => { if (!isDrawingRef.current) m.getCanvas().style.cursor = '' })
@@ -659,13 +564,6 @@ export function DataMap(props: Props) {
     m.flyTo({ center: [flyTo.lng, flyTo.lat], zoom: flyTo.zoom, duration: 1100, essential: true })
   }, [mapReady, flyTo])
 
-  // ── connectivity layer opacity ────────────────────────────────────────────
-  useEffect(() => {
-    const m = mapRef.current
-    if (!m || !mapReady) return
-    m.setPaintProperty('lyr-connectivity', 'raster-opacity', props.connectivityOpacity ?? 0.70)
-  }, [mapReady, props.connectivityOpacity])
-
   // ── load ecoducts once ───────────────────────────────────────────────────
   useEffect(() => {
     if (!mapReady) return
@@ -690,15 +588,20 @@ export function DataMap(props: Props) {
     const m = mapRef.current
     if (!m || !mapReady) return
     const vis = (on: boolean) => (on ? 'visible' : 'none') as 'visible' | 'none'
-    m.setLayoutProperty('lyr-connectivity',      'visibility', vis(layers.connectivity))
-    m.setLayoutProperty('lyr-patches',            'visibility', vis(layers.patches))
-    m.setLayoutProperty('lyr-ecoducts',           'visibility', vis(layers.ecoducts))
-    m.setLayoutProperty('lyr-occ-cluster',       'visibility', vis(layers.occurrences))
-    m.setLayoutProperty('lyr-occ-cluster-label', 'visibility', vis(layers.occurrences))
-    m.setLayoutProperty('lyr-occurrences',       'visibility', vis(layers.occurrences))
-    m.setLayoutProperty('lyr-rk-skull',          'visibility', vis(layers.roadkill))
-    m.setLayoutProperty('lyr-pinch',              'visibility', vis(layers.pinch))
-    m.setLayoutProperty('lyr-pinch-critical',     'visibility', vis(layers.pinch))
+    m.setLayoutProperty('lyr-connectivity',     'visibility', vis(layers.connectivity))
+    m.setLayoutProperty('lyr-patches-halo',     'visibility', vis(layers.patches))
+    m.setLayoutProperty('lyr-patches',          'visibility', vis(layers.patches))
+    m.setLayoutProperty('lyr-patches-label',    'visibility', vis(layers.patches))
+    m.setLayoutProperty('lyr-ecoducts-halo',    'visibility', vis(layers.ecoducts))
+    m.setLayoutProperty('lyr-ecoducts',         'visibility', vis(layers.ecoducts))
+    m.setLayoutProperty('lyr-occ-cluster',      'visibility', vis(layers.occurrences))
+    m.setLayoutProperty('lyr-occ-cluster-label','visibility', vis(layers.occurrences))
+    m.setLayoutProperty('lyr-occurrences-halo', 'visibility', vis(layers.occurrences))
+    m.setLayoutProperty('lyr-occurrences',      'visibility', vis(layers.occurrences))
+    m.setLayoutProperty('lyr-rk-heat',  'visibility', vis(layers.roadkill))
+    m.setLayoutProperty('lyr-rk-skull', 'visibility', vis(layers.roadkill))
+    m.setLayoutProperty('lyr-pinch-halo',       'visibility', vis(layers.pinch))
+    m.setLayoutProperty('lyr-pinch',            'visibility', vis(layers.pinch))
   }, [mapReady, layers])
 
   // ── fetch occurrences ────────────────────────────────────────────────────
@@ -708,52 +611,37 @@ export function DataMap(props: Props) {
     const m = mapRef.current
     if (!m || !mapReady || !speciesLatin) return
     let cancelled = false
-    const timer = setTimeout(() => {
-      if (cancelled) return
-      fetchInaturalistByPlace(speciesLatin, 7506, 80)
-          .then(res => {
-            if (cancelled) return
-            const feats = res.results.filter(o => o.location)
-                .map(o => pointFeature(o.location!.lng, o.location!.lat, {
-                  id: o.id,
-                  date: o.date ?? '',
-                  species: speciesLabel
-                }))
-            ;(m.getSource(OCC_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-            onCounts(p => ({...p, occurrences: res.total ?? feats.length}))
-          })
-          .catch((err: Error) => setError(err.message))
-    }, 400)
-    return () => { cancelled = true; clearTimeout(timer) }
-  }, [mapReady, species, speciesLatin, speciesLabel, bbox, onCounts])
+    fetchInaturalistByPlace(speciesLatin, 7506, 80)
+      .then(res => {
+        if (cancelled) return
+        const feats = res.results.filter(o => o.location)
+          .map(o => pointFeature(o.location!.lng, o.location!.lat, { id: o.id, date: o.date ?? '', species: speciesLabel }))
+        ;(m.getSource(OCC_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+        onCounts(p => ({ ...p, occurrences: res.total ?? feats.length }))
+      })
+      .catch((err: Error) => setError(err.message))
+    return () => { cancelled = true }
+  }, [mapReady, species, speciesLatin, speciesLabel, onCounts])
 
-  // ── fetch roadkills from GBIF ─────────────────────────────────────────────
-  // Roadkills are NL-wide context for spotting pinch-point clusters; we don't narrow
-  // them to the selected bbox (otherwise they disappear when you zoom into a small area).
+  // ── fetch roadkills from GBIF (NL-wide) ───────────────────────────────────
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
     let cancelled = false
-    const timer = setTimeout(() => {
-      if (cancelled) return
-      fetchRoadkills(300)
-        .then(({ total, points }) => {
-          if (cancelled) return
-          const feats = points.map(p => pointFeature(p.lng, p.lat, { id: p.id, date: p.date ?? '', species: p.species ?? '' }))
-          ;(m.getSource(RK_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-          onCounts(prev => ({ ...prev, roadkill: total }))
-        })
-        .catch((err: Error) => setError(err.message))
-    }, 600)
-    return () => { cancelled = true; clearTimeout(timer) }
+    fetchRoadkills(300)
+      .then(({ total, points }) => {
+        if (cancelled) return
+        const feats = points.map(p => pointFeature(p.lng, p.lat, { id: p.id, date: p.date ?? '', species: p.species ?? '' }))
+        ;(m.getSource(RK_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+        onCounts(prev => ({ ...prev, roadkill: total }))
+      })
+      .catch((err: Error) => setError(err.message))
+    return () => { cancelled = true }
   }, [mapReady, onCounts])
 
-  // ── fetch pre-computed critical pinches (≥95%) — served from JSON, instant ──
-  // Polls every 5s for the first ~5 minutes so first-boot users see entries appear as the
-  // warmer fills the file (warmer writes after every successful combo).
+  // ── critical pinches (≥95%, NL-wide, always visible) — from precomputed file ─
   useEffect(() => {
-    const m = mapRef.current
-    if (!m || !mapReady) return
+    if (!mapReady) return
     let cancelled = false
     let lastCount = -1
     const load = () => fetchCriticalPinches(species, 0.95)
@@ -761,7 +649,6 @@ export function DataMap(props: Props) {
         if (cancelled) return
         if (pinches.length !== lastCount) {
           lastCount = pinches.length
-          console.log(`[critical pinches] ${species}: ${pinches.length} ≥95%`)
           setCriticalPinches(pinches.map(p => pointFeature(p.lng, p.lat, {
             id: p.region + ':' + p.id,
             score: p.score,
@@ -775,7 +662,6 @@ export function DataMap(props: Props) {
     setCriticalPinches([])
     load()
     const interval = setInterval(load, 5000)
-    // After 5 min the warmer should be done; stop polling.
     const stop = setTimeout(() => clearInterval(interval), 5 * 60 * 1000)
     return () => { cancelled = true; clearInterval(interval); clearTimeout(stop) }
   }, [mapReady, species])
@@ -787,9 +673,7 @@ export function DataMap(props: Props) {
     ;(m.getSource(CRITICAL_PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(criticalPinches))
   }, [mapReady, criticalPinches])
 
-  // ── fetch bbox-filtered pinch points (also from the file, all scores) ──
-  // Same backend file as the always-on critical layer; here we filter by bbox + show every
-  // score so the user sees more detail inside the selected region. Instant — no Circuitscape.
+  // ── bbox-filtered pinch points (all scores) — also from the precomputed file ──
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
@@ -812,14 +696,14 @@ export function DataMap(props: Props) {
         ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
         onCounts(prev => ({ ...prev, pinch: feats.length }))
         if (feats.length === 0) {
-          setError('No precomputed pinch points fall inside the selected region. Try drawing over one of the showcase areas (Hoge Veluwe, Utrechtse Heuvelrug, Biesbosch, Salland-Twente).')
+          setError('No precomputed pinch points fall inside the selected region. Try drawing over Hoge Veluwe, Utrechtse Heuvelrug, Biesbosch, or Salland-Twente.')
         }
       })
       .catch((err: Error) => setError(err.message))
     return () => { cancelled = true }
   }, [mapReady, species, bbox, onCounts, criticalPinches])
 
-  // ── fetch connectivity grid ───────────────────────────────────────────────
+  // ── fetch connectivity grid (live; cached for showcase regions) ──────────
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
@@ -847,27 +731,23 @@ export function DataMap(props: Props) {
     return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, species, bbox])
 
-  // ── fetch habitat patches ────────────────────────────────────────────────
-  // Always NL-wide context, like roadkills/occurrences. Doesn't narrow with bbox selection.
+  // ── fetch habitat patches (NL-wide context) ──────────────────────────────
   useEffect(() => {
     const m = mapRef.current
     if (!m || !mapReady) return
     let cancelled = false
-    const timer = setTimeout(() => {
-      if (cancelled) return
-      fetchHabitatPatches(species, '3.2,50.7,7.2,53.6')
-          .then((patches: HabitatPatch[]) => {
-            if (cancelled) return
-            const feats = patches.filter(p => p.centroid)
-                .map(p => pointFeature(p.centroid.lng, p.centroid.lat, {
-                  id: p.id, kind: p.kind, areaHa: p.areaHa,
-                  quality: p.habitatQuality, cover: p.dominantLandCover,
-                }))
-            ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-          })
-          .catch((err: Error) => setError(err.message))
-    }, 200)
-    return () => { cancelled = true; clearTimeout(timer) }
+    fetchHabitatPatches(species, '3.2,50.7,7.2,53.6')
+      .then((patches: HabitatPatch[]) => {
+        if (cancelled) return
+        const feats = patches.filter(p => p.centroid)
+          .map(p => pointFeature(p.centroid.lng, p.centroid.lat, {
+            id: p.id, kind: p.kind, areaHa: p.areaHa,
+            quality: p.habitatQuality, cover: p.dominantLandCover,
+          }))
+        ;(m.getSource(PATCHES_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+      })
+      .catch((err: Error) => setError(err.message))
+    return () => { cancelled = true }
   }, [mapReady, species])
 
   // ── drawing mode: cursor + dragPan ───────────────────────────────────────
@@ -876,22 +756,6 @@ export function DataMap(props: Props) {
     m.getCanvas().style.cursor = isDrawing ? 'crosshair' : ''
     if (!isDrawing) { drawStartRef.current = null; m.dragPan.enable() }
   }, [isDrawing])
-
-  // ── report mode cursor ───────────────────────────────────────────────────
-  useEffect(() => {
-    const m = mapRef.current; if (!m) return
-    if (props.reportMode) m.getCanvas().style.cursor = 'crosshair'
-    else if (!isDrawing) m.getCanvas().style.cursor = ''
-  }, [props.reportMode, isDrawing])
-
-  // ── sync user reports to map ─────────────────────────────────────────────
-  useEffect(() => {
-    const m = mapRef.current; if (!m || !mapReady) return
-    const feats = (props.userReports ?? []).map(r => pointFeature(r.lng, r.lat, {
-      id: r.id, rtype: r.rtype, species: r.species,
-    }))
-    ;(m.getSource(REPORTS_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-  }, [mapReady, props.userReports])
 
   // ── render bbox outline + fit view ──────────────────────────────────────
   useEffect(() => {
@@ -1035,55 +899,7 @@ export function DataMap(props: Props) {
         )}
       </div>
 
-      {/* draw region / clear region buttons */}
-      <div style={{
-        position: 'absolute', bottom: 32, right: 16, zIndex: 20,
-        display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end',
-      }}>
-        <button
-          onClick={() => setIsDrawing(v => !v)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '7px',
-            padding: '8px 14px',
-            fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-            fontSize: '0.54rem', letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: isDrawing ? '#f0eee6' : '#1a2818',
-            background: isDrawing ? '#1a2818' : 'rgba(240,238,230,0.97)',
-            border: isDrawing ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
-            borderRadius: '2px', cursor: 'pointer',
-            backdropFilter: 'blur(14px)',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-            transition: 'all 0.18s',
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-            <rect x="1" y="1" width="12" height="12" rx="1"
-              stroke={isDrawing ? 'rgba(240,238,230,0.7)' : 'rgba(42,64,32,0.7)'}
-              strokeWidth="1.5" strokeDasharray="3 2"/>
-          </svg>
-          {isDrawing ? 'Cancel draw' : 'Draw region'}
-        </button>
-        {props.bbox && !isDrawing && (
-          <button
-            onClick={() => props.onBboxChange(null)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '7px 12px',
-              fontFamily: "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif",
-              fontSize: '0.5rem', letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: 'rgba(0,0,0,0.45)',
-              background: 'rgba(240,238,230,0.9)',
-              border: '1px solid rgba(0,0,0,0.09)',
-              borderRadius: '2px', cursor: 'pointer',
-              backdropFilter: 'blur(14px)',
-              boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
-            }}
-          >
-            ✕ Clear region
-          </button>
-        )}
-      </div>
-
+      {/* spinner removed: pinches load instantly from the precomputed file. */}
 
       {/* error */}
       {error && (
