@@ -98,23 +98,6 @@ WWF European Policy Office — Nature Restoration Law implementation lead
 BirdLife Europe — policy + 40+ national partners
 IUCN European Regional Office — sets the standards your outputs would align to
 Wetlands International — wetland-specific connectivity (otters, amphibians, waterbirds)
-Jury
-Adriaan Mol https://www.linkedin.com/in/adriaan/
-Founder of Mollie (payments app)
-No studies
-Clare Jones https://www.linkedin.com/in/clare-jones-/
-Climate tech, co-founder at a travel tech company
-Studied geography
-investor
-Duco van Lanschot https://www.linkedin.com/in/lanschot/
-B2B fintech
-Studied law
-investor
-Ruben Timmerman https://www.linkedin.com/in/rubentimmerman/
-Sustainable systems change, climate, circular economy, and conscious leadership.
-Someone who believes the world changes through redesigning systems rather than fixing symptoms. Low-tech solutions (sand batteries, night trains, shared tools)
-Studied information science
-Investor
 
 
 
