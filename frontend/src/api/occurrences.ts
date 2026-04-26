@@ -45,3 +45,17 @@ export async function fetchInaturalist(
     page: 1,
   })
 }
+
+/** Country-scoped iNaturalist query — used when no bbox is selected. iNat place_id 7506 = Netherlands. */
+export async function fetchInaturalistByPlace(
+  taxonName: string,
+  placeId: number,
+  perPage = 80,
+): Promise<OccurrenceResponse> {
+  return getJson<OccurrenceResponse>('/api/inaturalist-occurrences', {
+    taxonName,
+    placeId,
+    perPage,
+    page: 1,
+  })
+}

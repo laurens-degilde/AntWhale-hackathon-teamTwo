@@ -7,7 +7,11 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,6 +63,14 @@ public class OsmFeaturesService {
             .body(BodyInserters.fromFormData("data", query))
             .retrieve()
             .bodyToMono(MAP_TYPE)
+            // Retry transient failures: Overpass 429 (slot unavailable) + connection resets/timeouts.
+            // Backoff 4s → 8s → 16s. Three attempts total. Real per-IP throttle on overpass-api.de
+            // typically clears within 30–60s; this gives one selection enough rope to recover.
+            .retryWhen(Retry.backoff(2, Duration.ofSeconds(4))
+                .maxBackoff(Duration.ofSeconds(20))
+                .filter(OsmFeaturesService::isTransient)
+                .doBeforeRetry(s -> log.warn("Overpass retry {} of 2 — {}", s.totalRetries() + 1,
+                    s.failure().getClass().getSimpleName() + ": " + s.failure().getMessage())))
             .block();
 
         long approxSize = approximateSize(raw);
@@ -67,6 +79,15 @@ public class OsmFeaturesService {
             fc.put("warning", "response_large");
         }
         return fc;
+    }
+
+    /** Should this failure be retried? Yes for 429/503/504 from Overpass and any connection-level error. */
+    private static boolean isTransient(Throwable t) {
+        if (t instanceof WebClientResponseException wcre) {
+            int s = wcre.getStatusCode().value();
+            return s == 429 || s == 502 || s == 503 || s == 504;
+        }
+        return t instanceof WebClientRequestException;
     }
 
     static String buildQuery(String bboxClause, List<String> featureTypes) {

@@ -1,0 +1,1108 @@
+{
+  "generated" : "2026-04-25T23:45:07.267905Z",
+  "count" : 122,
+  "regions" : [ {
+    "id" : "hoge-veluwe",
+    "bbox" : "5.74,52.05,5.86,52.12"
+  }, {
+    "id" : "utrechtse-heuvelrug",
+    "bbox" : "5.20,52.00,5.45,52.15"
+  }, {
+    "id" : "biesbosch",
+    "bbox" : "4.70,51.70,4.95,51.82"
+  }, {
+    "id" : "salland-twente",
+    "bbox" : "6.00,52.20,6.40,52.45"
+  } ],
+  "pinches" : [ {
+    "species" : "badger",
+    "region" : "hoge-veluwe",
+    "id" : "pp-1",
+    "lat" : 52.113984,
+    "lng" : 5.776563,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-7 ↔ patch-10"
+  }, {
+    "species" : "badger",
+    "region" : "hoge-veluwe",
+    "id" : "pp-2",
+    "lat" : 52.113984,
+    "lng" : 5.836563,
+    "score" : 0.888,
+    "cover" : "forest",
+    "between" : "patch-6 ↔ patch-13"
+  }, {
+    "species" : "badger",
+    "region" : "hoge-veluwe",
+    "id" : "pp-3",
+    "lat" : 52.110703,
+    "lng" : 5.806563,
+    "score" : 0.885,
+    "cover" : "agricultural_field",
+    "between" : "patch-4 ↔ patch-6"
+  }, {
+    "species" : "badger",
+    "region" : "hoge-veluwe",
+    "id" : "pp-4",
+    "lat" : 52.075703,
+    "lng" : 5.810313,
+    "score" : 0.853,
+    "cover" : "agricultural_field",
+    "between" : "patch-2 ↔ patch-3"
+  }, {
+    "species" : "badger",
+    "region" : "hoge-veluwe",
+    "id" : "pp-5",
+    "lat" : 52.084453,
+    "lng" : 5.845938,
+    "score" : 0.849,
+    "cover" : "agricultural_field",
+    "between" : "patch-3 ↔ patch-2"
+  }, {
+    "species" : "badger",
+    "region" : "hoge-veluwe",
+    "id" : "pp-6",
+    "lat" : 52.116172,
+    "lng" : 5.851563,
+    "score" : 0.839,
+    "cover" : "agricultural_field",
+    "between" : "patch-8 ↔ patch-13"
+  }, {
+    "species" : "badger",
+    "region" : "hoge-veluwe",
+    "id" : "pp-7",
+    "lat" : 52.112891,
+    "lng" : 5.759688,
+    "score" : 0.838,
+    "cover" : "agricultural_field",
+    "between" : "patch-5 ↔ patch-10"
+  }, {
+    "species" : "badger",
+    "region" : "hoge-veluwe",
+    "id" : "pp-8",
+    "lat" : 52.071328,
+    "lng" : 5.763438,
+    "score" : 0.838,
+    "cover" : "agricultural_field",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "badger",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-1",
+    "lat" : 52.076172,
+    "lng" : 5.338672,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-7 ↔ patch-34"
+  }, {
+    "species" : "badger",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-2",
+    "lat" : 52.099609,
+    "lng" : 5.311328,
+    "score" : 0.987,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-1"
+  }, {
+    "species" : "badger",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-3",
+    "lat" : 52.108984,
+    "lng" : 5.338672,
+    "score" : 0.952,
+    "cover" : "agricultural_field",
+    "between" : "patch-1 ↔ patch-27"
+  }, {
+    "species" : "badger",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-4",
+    "lat" : 52.076172,
+    "lng" : 5.291797,
+    "score" : 0.942,
+    "cover" : "agricultural_field",
+    "between" : "patch-5 ↔ patch-51"
+  }, {
+    "species" : "badger",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-5",
+    "lat" : 52.116016,
+    "lng" : 5.377734,
+    "score" : 0.909,
+    "cover" : "fence_line",
+    "between" : "patch-4 ↔ patch-47"
+  }, {
+    "species" : "badger",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-6",
+    "lat" : 52.036328,
+    "lng" : 5.432422,
+    "score" : 0.897,
+    "cover" : "fence_line",
+    "between" : "patch-3 ↔ patch-14"
+  }, {
+    "species" : "badger",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-7",
+    "lat" : 52.116016,
+    "lng" : 5.213672,
+    "score" : 0.89,
+    "cover" : "fence_line",
+    "between" : "patch-8 ↔ patch-9"
+  }, {
+    "species" : "badger",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-8",
+    "lat" : 52.012891,
+    "lng" : 5.225391,
+    "score" : 0.89,
+    "cover" : "agricultural_field",
+    "between" : "patch-6 ↔ patch-43"
+  }, {
+    "species" : "badger",
+    "region" : "biesbosch",
+    "id" : "pp-1",
+    "lat" : 51.779688,
+    "lng" : 4.780078,
+    "score" : 1.0,
+    "cover" : "agricultural_field",
+    "between" : "patch-4 ↔ patch-37"
+  }, {
+    "species" : "badger",
+    "region" : "biesbosch",
+    "id" : "pp-2",
+    "lat" : 51.785313,
+    "lng" : 4.823047,
+    "score" : 0.997,
+    "cover" : "agricultural_field",
+    "between" : "patch-7 ↔ patch-3"
+  }, {
+    "species" : "badger",
+    "region" : "biesbosch",
+    "id" : "pp-3",
+    "lat" : 51.783438,
+    "lng" : 4.850391,
+    "score" : 0.989,
+    "cover" : "agricultural_field",
+    "between" : "patch-3 ↔ patch-38"
+  }, {
+    "species" : "badger",
+    "region" : "biesbosch",
+    "id" : "pp-4",
+    "lat" : 51.807813,
+    "lng" : 4.811328,
+    "score" : 0.968,
+    "cover" : "agricultural_field",
+    "between" : "patch-2 ↔ patch-7"
+  }, {
+    "species" : "badger",
+    "region" : "biesbosch",
+    "id" : "pp-5",
+    "lat" : 51.785313,
+    "lng" : 4.885547,
+    "score" : 0.948,
+    "cover" : "agricultural_field",
+    "between" : "patch-6 ↔ patch-41"
+  }, {
+    "species" : "badger",
+    "region" : "biesbosch",
+    "id" : "pp-6",
+    "lat" : 51.740313,
+    "lng" : 4.783984,
+    "score" : 0.947,
+    "cover" : "agricultural_field",
+    "between" : "patch-1 ↔ patch-17"
+  }, {
+    "species" : "badger",
+    "region" : "biesbosch",
+    "id" : "pp-7",
+    "lat" : 51.777813,
+    "lng" : 4.721484,
+    "score" : 0.943,
+    "cover" : "agricultural_field",
+    "between" : "patch-8 ↔ patch-15"
+  }, {
+    "species" : "badger",
+    "region" : "biesbosch",
+    "id" : "pp-8",
+    "lat" : 51.721563,
+    "lng" : 4.920703,
+    "score" : 0.923,
+    "cover" : "agricultural_field",
+    "between" : "patch-5 ↔ patch-43"
+  }, {
+    "species" : "badger",
+    "region" : "salland-twente",
+    "id" : "pp-1",
+    "lat" : 52.428516,
+    "lng" : 6.034375,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-6"
+  }, {
+    "species" : "badger",
+    "region" : "salland-twente",
+    "id" : "pp-2",
+    "lat" : 52.408984,
+    "lng" : 6.215625,
+    "score" : 0.954,
+    "cover" : "agricultural_field",
+    "between" : "patch-4 ↔ patch-8"
+  }, {
+    "species" : "badger",
+    "region" : "salland-twente",
+    "id" : "pp-3",
+    "lat" : 52.444141,
+    "lng" : 6.153125,
+    "score" : 0.94,
+    "cover" : "agricultural_field",
+    "between" : "patch-8 ↔ patch-11"
+  }, {
+    "species" : "badger",
+    "region" : "salland-twente",
+    "id" : "pp-4",
+    "lat" : 52.358203,
+    "lng" : 6.284375,
+    "score" : 0.934,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-2"
+  }, {
+    "species" : "badger",
+    "region" : "salland-twente",
+    "id" : "pp-5",
+    "lat" : 52.342578,
+    "lng" : 6.384375,
+    "score" : 0.908,
+    "cover" : "hedgerow",
+    "between" : "patch-2 ↔ patch-5"
+  }, {
+    "species" : "badger",
+    "region" : "salland-twente",
+    "id" : "pp-6",
+    "lat" : 52.307422,
+    "lng" : 6.184375,
+    "score" : 0.89,
+    "cover" : "agricultural_field",
+    "between" : "patch-3 ↔ patch-10"
+  }, {
+    "species" : "badger",
+    "region" : "salland-twente",
+    "id" : "pp-7",
+    "lat" : 52.424609,
+    "lng" : 6.365625,
+    "score" : 0.884,
+    "cover" : "agricultural_field",
+    "between" : "patch-7 ↔ patch-2"
+  }, {
+    "species" : "badger",
+    "region" : "salland-twente",
+    "id" : "pp-8",
+    "lat" : 52.440234,
+    "lng" : 6.028125,
+    "score" : 0.326,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-6"
+  }, {
+    "species" : "otter",
+    "region" : "hoge-veluwe",
+    "id" : "__empty__",
+    "lat" : 0.0,
+    "lng" : 0.0,
+    "score" : 0.0,
+    "cover" : "INSUFFICIENT_HABITAT"
+  }, {
+    "species" : "otter",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "__empty__",
+    "lat" : 0.0,
+    "lng" : 0.0,
+    "score" : 0.0,
+    "cover" : "INSUFFICIENT_HABITAT"
+  }, {
+    "species" : "otter",
+    "region" : "biesbosch",
+    "id" : "__empty__",
+    "lat" : 0.0,
+    "lng" : 0.0,
+    "score" : 0.0,
+    "cover" : "INSUFFICIENT_HABITAT"
+  }, {
+    "species" : "otter",
+    "region" : "salland-twente",
+    "id" : "__empty__",
+    "lat" : 0.0,
+    "lng" : 0.0,
+    "score" : 0.0,
+    "cover" : "INSUFFICIENT_HABITAT"
+  }, {
+    "species" : "red_deer",
+    "region" : "hoge-veluwe",
+    "id" : "pp-1",
+    "lat" : 52.088828,
+    "lng" : 5.799063,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-34"
+  }, {
+    "species" : "red_deer",
+    "region" : "hoge-veluwe",
+    "id" : "pp-2",
+    "lat" : 52.104141,
+    "lng" : 5.817813,
+    "score" : 0.978,
+    "cover" : "forest",
+    "between" : "patch-3 ↔ patch-24"
+  }, {
+    "species" : "red_deer",
+    "region" : "hoge-veluwe",
+    "id" : "pp-3",
+    "lat" : 52.087734,
+    "lng" : 5.838438,
+    "score" : 0.925,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-2"
+  }, {
+    "species" : "red_deer",
+    "region" : "hoge-veluwe",
+    "id" : "pp-4",
+    "lat" : 52.100859,
+    "lng" : 5.845938,
+    "score" : 0.916,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-5"
+  }, {
+    "species" : "red_deer",
+    "region" : "hoge-veluwe",
+    "id" : "pp-5",
+    "lat" : 52.115078,
+    "lng" : 5.778438,
+    "score" : 0.912,
+    "cover" : "forest",
+    "between" : "patch-7 ↔ patch-14"
+  }, {
+    "species" : "red_deer",
+    "region" : "hoge-veluwe",
+    "id" : "pp-6",
+    "lat" : 52.087734,
+    "lng" : 5.744688,
+    "score" : 0.898,
+    "cover" : "forest",
+    "between" : "patch-8 ↔ patch-11"
+  }, {
+    "species" : "red_deer",
+    "region" : "hoge-veluwe",
+    "id" : "pp-7",
+    "lat" : 52.113984,
+    "lng" : 5.834688,
+    "score" : 0.893,
+    "cover" : "forest",
+    "between" : "patch-4 ↔ patch-24"
+  }, {
+    "species" : "red_deer",
+    "region" : "hoge-veluwe",
+    "id" : "pp-8",
+    "lat" : 52.052734,
+    "lng" : 5.748438,
+    "score" : 0.885,
+    "cover" : "forest",
+    "between" : "patch-6 ↔ patch-32"
+  }, {
+    "species" : "red_deer",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-1",
+    "lat" : 52.048047,
+    "lng" : 5.362109,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-14"
+  }, {
+    "species" : "red_deer",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-2",
+    "lat" : 52.052734,
+    "lng" : 5.326953,
+    "score" : 0.911,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-9"
+  }, {
+    "species" : "red_deer",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-3",
+    "lat" : 52.080859,
+    "lng" : 5.338672,
+    "score" : 0.905,
+    "cover" : "forest",
+    "between" : "patch-3 ↔ patch-12"
+  }, {
+    "species" : "red_deer",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-4",
+    "lat" : 52.036328,
+    "lng" : 5.401172,
+    "score" : 0.88,
+    "cover" : "forest",
+    "between" : "patch-8 ↔ patch-23"
+  }, {
+    "species" : "red_deer",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-5",
+    "lat" : 52.099609,
+    "lng" : 5.303516,
+    "score" : 0.87,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-3"
+  }, {
+    "species" : "red_deer",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-6",
+    "lat" : 52.048047,
+    "lng" : 5.432422,
+    "score" : 0.84,
+    "cover" : "forest",
+    "between" : "patch-6 ↔ patch-13"
+  }, {
+    "species" : "red_deer",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-7",
+    "lat" : 52.015234,
+    "lng" : 5.287891,
+    "score" : 0.833,
+    "cover" : "hedgerow",
+    "between" : "patch-7 ↔ patch-18"
+  }, {
+    "species" : "red_deer",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-8",
+    "lat" : 52.120703,
+    "lng" : 5.217578,
+    "score" : 0.825,
+    "cover" : "forest",
+    "between" : "patch-4 ↔ patch-1"
+  }, {
+    "species" : "red_deer",
+    "region" : "biesbosch",
+    "id" : "__empty__",
+    "lat" : 0.0,
+    "lng" : 0.0,
+    "score" : 0.0,
+    "cover" : "INSUFFICIENT_HABITAT"
+  }, {
+    "species" : "red_deer",
+    "region" : "salland-twente",
+    "id" : "pp-1",
+    "lat" : 52.432422,
+    "lng" : 6.034375,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "red_deer",
+    "region" : "salland-twente",
+    "id" : "pp-2",
+    "lat" : 52.346484,
+    "lng" : 6.384375,
+    "score" : 1.0,
+    "cover" : "hedgerow",
+    "between" : "patch-2 ↔ patch-1"
+  }, {
+    "species" : "red_deer",
+    "region" : "salland-twente",
+    "id" : "pp-3",
+    "lat" : 52.330859,
+    "lng" : 6.384375,
+    "score" : 0.206,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-1"
+  }, {
+    "species" : "red_deer",
+    "region" : "salland-twente",
+    "id" : "pp-4",
+    "lat" : 52.428516,
+    "lng" : 6.053125,
+    "score" : 0.135,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "red_deer",
+    "region" : "salland-twente",
+    "id" : "pp-5",
+    "lat" : 52.412891,
+    "lng" : 6.034375,
+    "score" : 0.118,
+    "cover" : "fence_line",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "pine_marten",
+    "region" : "hoge-veluwe",
+    "id" : "pp-1",
+    "lat" : 52.088828,
+    "lng" : 5.799063,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-34"
+  }, {
+    "species" : "pine_marten",
+    "region" : "hoge-veluwe",
+    "id" : "pp-2",
+    "lat" : 52.104141,
+    "lng" : 5.817813,
+    "score" : 0.911,
+    "cover" : "forest",
+    "between" : "patch-3 ↔ patch-24"
+  }, {
+    "species" : "pine_marten",
+    "region" : "hoge-veluwe",
+    "id" : "pp-3",
+    "lat" : 52.087734,
+    "lng" : 5.838438,
+    "score" : 0.842,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-2"
+  }, {
+    "species" : "pine_marten",
+    "region" : "hoge-veluwe",
+    "id" : "pp-4",
+    "lat" : 52.115078,
+    "lng" : 5.778438,
+    "score" : 0.836,
+    "cover" : "forest",
+    "between" : "patch-7 ↔ patch-14"
+  }, {
+    "species" : "pine_marten",
+    "region" : "hoge-veluwe",
+    "id" : "pp-5",
+    "lat" : 52.100859,
+    "lng" : 5.845938,
+    "score" : 0.835,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-5"
+  }, {
+    "species" : "pine_marten",
+    "region" : "hoge-veluwe",
+    "id" : "pp-6",
+    "lat" : 52.087734,
+    "lng" : 5.744688,
+    "score" : 0.823,
+    "cover" : "forest",
+    "between" : "patch-8 ↔ patch-11"
+  }, {
+    "species" : "pine_marten",
+    "region" : "hoge-veluwe",
+    "id" : "pp-7",
+    "lat" : 52.113984,
+    "lng" : 5.834688,
+    "score" : 0.815,
+    "cover" : "forest",
+    "between" : "patch-4 ↔ patch-24"
+  }, {
+    "species" : "pine_marten",
+    "region" : "hoge-veluwe",
+    "id" : "pp-8",
+    "lat" : 52.052734,
+    "lng" : 5.748438,
+    "score" : 0.807,
+    "cover" : "forest",
+    "between" : "patch-6 ↔ patch-32"
+  }, {
+    "species" : "pine_marten",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-1",
+    "lat" : 52.048047,
+    "lng" : 5.362109,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-14"
+  }, {
+    "species" : "pine_marten",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-2",
+    "lat" : 52.080859,
+    "lng" : 5.338672,
+    "score" : 0.88,
+    "cover" : "forest",
+    "between" : "patch-3 ↔ patch-12"
+  }, {
+    "species" : "pine_marten",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-3",
+    "lat" : 52.052734,
+    "lng" : 5.326953,
+    "score" : 0.88,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-9"
+  }, {
+    "species" : "pine_marten",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-4",
+    "lat" : 52.099609,
+    "lng" : 5.303516,
+    "score" : 0.855,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-3"
+  }, {
+    "species" : "pine_marten",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-5",
+    "lat" : 52.036328,
+    "lng" : 5.401172,
+    "score" : 0.847,
+    "cover" : "forest",
+    "between" : "patch-8 ↔ patch-23"
+  }, {
+    "species" : "pine_marten",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-6",
+    "lat" : 52.048047,
+    "lng" : 5.432422,
+    "score" : 0.821,
+    "cover" : "forest",
+    "between" : "patch-6 ↔ patch-13"
+  }, {
+    "species" : "pine_marten",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-7",
+    "lat" : 52.015234,
+    "lng" : 5.287891,
+    "score" : 0.805,
+    "cover" : "hedgerow",
+    "between" : "patch-7 ↔ patch-18"
+  }, {
+    "species" : "pine_marten",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-8",
+    "lat" : 52.120703,
+    "lng" : 5.217578,
+    "score" : 0.8,
+    "cover" : "forest",
+    "between" : "patch-4 ↔ patch-1"
+  }, {
+    "species" : "pine_marten",
+    "region" : "biesbosch",
+    "id" : "__empty__",
+    "lat" : 0.0,
+    "lng" : 0.0,
+    "score" : 0.0,
+    "cover" : "INSUFFICIENT_HABITAT"
+  }, {
+    "species" : "pine_marten",
+    "region" : "salland-twente",
+    "id" : "pp-1",
+    "lat" : 52.346484,
+    "lng" : 6.384375,
+    "score" : 1.0,
+    "cover" : "hedgerow",
+    "between" : "patch-2 ↔ patch-1"
+  }, {
+    "species" : "pine_marten",
+    "region" : "salland-twente",
+    "id" : "pp-2",
+    "lat" : 52.432422,
+    "lng" : 6.034375,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "pine_marten",
+    "region" : "salland-twente",
+    "id" : "pp-3",
+    "lat" : 52.330859,
+    "lng" : 6.384375,
+    "score" : 0.155,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-1"
+  }, {
+    "species" : "pine_marten",
+    "region" : "salland-twente",
+    "id" : "pp-4",
+    "lat" : 52.428516,
+    "lng" : 6.053125,
+    "score" : 0.142,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "hoge-veluwe",
+    "id" : "pp-1",
+    "lat" : 52.088828,
+    "lng" : 5.799063,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-34"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "hoge-veluwe",
+    "id" : "pp-2",
+    "lat" : 52.104141,
+    "lng" : 5.817813,
+    "score" : 0.974,
+    "cover" : "forest",
+    "between" : "patch-3 ↔ patch-24"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "hoge-veluwe",
+    "id" : "pp-3",
+    "lat" : 52.087734,
+    "lng" : 5.838438,
+    "score" : 0.92,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-2"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "hoge-veluwe",
+    "id" : "pp-4",
+    "lat" : 52.100859,
+    "lng" : 5.845938,
+    "score" : 0.912,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-5"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "hoge-veluwe",
+    "id" : "pp-5",
+    "lat" : 52.115078,
+    "lng" : 5.778438,
+    "score" : 0.91,
+    "cover" : "forest",
+    "between" : "patch-7 ↔ patch-14"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "hoge-veluwe",
+    "id" : "pp-6",
+    "lat" : 52.087734,
+    "lng" : 5.744688,
+    "score" : 0.899,
+    "cover" : "forest",
+    "between" : "patch-8 ↔ patch-11"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "hoge-veluwe",
+    "id" : "pp-7",
+    "lat" : 52.113984,
+    "lng" : 5.834688,
+    "score" : 0.889,
+    "cover" : "forest",
+    "between" : "patch-4 ↔ patch-24"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "hoge-veluwe",
+    "id" : "pp-8",
+    "lat" : 52.052734,
+    "lng" : 5.748438,
+    "score" : 0.878,
+    "cover" : "forest",
+    "between" : "patch-6 ↔ patch-32"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-1",
+    "lat" : 52.048047,
+    "lng" : 5.362109,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-14"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-2",
+    "lat" : 52.080859,
+    "lng" : 5.338672,
+    "score" : 0.904,
+    "cover" : "forest",
+    "between" : "patch-3 ↔ patch-12"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-3",
+    "lat" : 52.052734,
+    "lng" : 5.326953,
+    "score" : 0.903,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-9"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-4",
+    "lat" : 52.099609,
+    "lng" : 5.303516,
+    "score" : 0.867,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-3"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-5",
+    "lat" : 52.036328,
+    "lng" : 5.401172,
+    "score" : 0.865,
+    "cover" : "forest",
+    "between" : "patch-8 ↔ patch-23"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-6",
+    "lat" : 52.048047,
+    "lng" : 5.432422,
+    "score" : 0.842,
+    "cover" : "forest",
+    "between" : "patch-6 ↔ patch-13"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-7",
+    "lat" : 52.015234,
+    "lng" : 5.287891,
+    "score" : 0.831,
+    "cover" : "hedgerow",
+    "between" : "patch-7 ↔ patch-18"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-8",
+    "lat" : 52.120703,
+    "lng" : 5.217578,
+    "score" : 0.813,
+    "cover" : "forest",
+    "between" : "patch-4 ↔ patch-1"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "biesbosch",
+    "id" : "__empty__",
+    "lat" : 0.0,
+    "lng" : 0.0,
+    "score" : 0.0,
+    "cover" : "INSUFFICIENT_HABITAT"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "salland-twente",
+    "id" : "pp-1",
+    "lat" : 52.432422,
+    "lng" : 6.034375,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "salland-twente",
+    "id" : "pp-2",
+    "lat" : 52.346484,
+    "lng" : 6.384375,
+    "score" : 1.0,
+    "cover" : "hedgerow",
+    "between" : "patch-2 ↔ patch-1"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "salland-twente",
+    "id" : "pp-3",
+    "lat" : 52.330859,
+    "lng" : 6.384375,
+    "score" : 0.21,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-1"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "salland-twente",
+    "id" : "pp-4",
+    "lat" : 52.428516,
+    "lng" : 6.053125,
+    "score" : 0.133,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "great_crested_newt",
+    "region" : "salland-twente",
+    "id" : "pp-5",
+    "lat" : 52.412891,
+    "lng" : 6.034375,
+    "score" : 0.113,
+    "cover" : "fence_line",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "hoge-veluwe",
+    "id" : "pp-1",
+    "lat" : 52.088828,
+    "lng" : 5.799063,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-34"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "hoge-veluwe",
+    "id" : "pp-2",
+    "lat" : 52.105234,
+    "lng" : 5.832813,
+    "score" : 0.888,
+    "cover" : "forest",
+    "between" : "patch-24 ↔ patch-2"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "hoge-veluwe",
+    "id" : "pp-3",
+    "lat" : 52.104141,
+    "lng" : 5.817813,
+    "score" : 0.863,
+    "cover" : "forest",
+    "between" : "patch-3 ↔ patch-24"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "hoge-veluwe",
+    "id" : "pp-4",
+    "lat" : 52.087734,
+    "lng" : 5.838438,
+    "score" : 0.783,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-2"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "hoge-veluwe",
+    "id" : "pp-5",
+    "lat" : 52.100859,
+    "lng" : 5.845938,
+    "score" : 0.777,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-5"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "hoge-veluwe",
+    "id" : "pp-6",
+    "lat" : 52.115078,
+    "lng" : 5.778438,
+    "score" : 0.776,
+    "cover" : "forest",
+    "between" : "patch-7 ↔ patch-14"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "hoge-veluwe",
+    "id" : "pp-7",
+    "lat" : 52.087734,
+    "lng" : 5.744688,
+    "score" : 0.768,
+    "cover" : "forest",
+    "between" : "patch-8 ↔ patch-11"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "hoge-veluwe",
+    "id" : "pp-8",
+    "lat" : 52.113984,
+    "lng" : 5.834688,
+    "score" : 0.758,
+    "cover" : "forest",
+    "between" : "patch-4 ↔ patch-24"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-1",
+    "lat" : 52.048047,
+    "lng" : 5.362109,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-14"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-2",
+    "lat" : 52.080859,
+    "lng" : 5.338672,
+    "score" : 0.889,
+    "cover" : "forest",
+    "between" : "patch-3 ↔ patch-12"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-3",
+    "lat" : 52.057422,
+    "lng" : 5.342578,
+    "score" : 0.86,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-9"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-4",
+    "lat" : 52.052734,
+    "lng" : 5.326953,
+    "score" : 0.851,
+    "cover" : "forest",
+    "between" : "patch-5 ↔ patch-9"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-5",
+    "lat" : 52.099609,
+    "lng" : 5.303516,
+    "score" : 0.846,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-3"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-6",
+    "lat" : 52.036328,
+    "lng" : 5.401172,
+    "score" : 0.814,
+    "cover" : "forest",
+    "between" : "patch-8 ↔ patch-23"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-7",
+    "lat" : 52.048047,
+    "lng" : 5.432422,
+    "score" : 0.795,
+    "cover" : "forest",
+    "between" : "patch-6 ↔ patch-13"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "utrechtse-heuvelrug",
+    "id" : "pp-8",
+    "lat" : 52.015234,
+    "lng" : 5.287891,
+    "score" : 0.772,
+    "cover" : "hedgerow",
+    "between" : "patch-7 ↔ patch-18"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "biesbosch",
+    "id" : "__empty__",
+    "lat" : 0.0,
+    "lng" : 0.0,
+    "score" : 0.0,
+    "cover" : "INSUFFICIENT_HABITAT"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "salland-twente",
+    "id" : "pp-1",
+    "lat" : 52.346484,
+    "lng" : 6.384375,
+    "score" : 1.0,
+    "cover" : "hedgerow",
+    "between" : "patch-2 ↔ patch-1"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "salland-twente",
+    "id" : "pp-2",
+    "lat" : 52.432422,
+    "lng" : 6.034375,
+    "score" : 1.0,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "salland-twente",
+    "id" : "pp-3",
+    "lat" : 52.428516,
+    "lng" : 6.053125,
+    "score" : 0.143,
+    "cover" : "forest",
+    "between" : "patch-1 ↔ patch-2"
+  }, {
+    "species" : "hazel_dormouse",
+    "region" : "salland-twente",
+    "id" : "pp-4",
+    "lat" : 52.330859,
+    "lng" : 6.384375,
+    "score" : 0.122,
+    "cover" : "forest",
+    "between" : "patch-2 ↔ patch-1"
+  } ]
+}
