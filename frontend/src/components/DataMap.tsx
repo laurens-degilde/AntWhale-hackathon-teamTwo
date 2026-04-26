@@ -13,9 +13,8 @@ import toolboxPng from '../assets/toolbox.png'
 import pawsPng from '../assets/paws.png'
 import { fetchEcoducts, type Ecoduct } from '../api/ecoducts'
 import { fetchInaturalistByPlace } from '../api/occurrences'
-import { bboxToCircle, fetchInaturalist } from '../api/occurrences'
-import { fetchGbifRoadkills } from '../api/roadkills'
-import { fetchPinchPoints } from '../api/pinchPoints'
+import { fetchRoadkills } from '../api/roadkills'
+import { fetchCriticalPinches } from '../api/criticalPinches'
 import { fetchConnectivity, gridToCanvas } from '../api/connectivity'
 import { fetchHabitatPatches, type HabitatPatch } from '../api/habitatPatches'
 import { SPECIES, type Species } from '../api/technicalReport'
@@ -267,9 +266,6 @@ export function DataMap(props: Props) {
   const [error,           setError]          = useState<string | null>(null)
   const [isDrawing,       setIsDrawing]      = useState(false)
   const [criticalPinches, setCriticalPinches] = useState<PointFeature[]>([])
-  const [loadingCircuit,  setLoadingCircuit] = useState(false)
-  const [loadingPinch,    setLoadingPinch]    = useState(false)
-  const [pendingCorner,   setPendingCorner]   = useState<[number, number] | null>(null)
 
   const speciesLatin = useMemo(() => SPECIES.find(s => s.value === species)?.latin ?? '', [species])
   const speciesLabel = useMemo(() => SPECIES.find(s => s.value === species)?.label ?? species, [species])
@@ -574,7 +570,6 @@ export function DataMap(props: Props) {
           const newBbox = `${Math.min(a0,lng).toFixed(4)},${Math.min(a1,lat).toFixed(4)},${Math.max(a0,lng).toFixed(4)},${Math.max(a1,lat).toFixed(4)}`
           onBboxChangeRef.current(newBbox)
         }
-        openPopup(patchHtml(f.properties as Record<string, string>), lng, lat)
       })
 
       // ── cluster zoom-in ───────────────────────────────────────────────────
@@ -741,8 +736,7 @@ export function DataMap(props: Props) {
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
-      // const effectiveBbox = bbox ?? viewportBbox(m)
-      fetchGbifRoadkills(null, 300)
+      fetchRoadkills(300)
         .then(({ total, points }) => {
           if (cancelled) return
           const feats = points.map(p => pointFeature(p.lng, p.lat, { id: p.id, date: p.date ?? '', species: p.species ?? '' }))
@@ -751,7 +745,7 @@ export function DataMap(props: Props) {
         })
         .catch((err: Error) => setError(err.message))
     }, 600)
-      return () => { cancelled = true; clearTimeout(timer) }
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [mapReady, onCounts])
 
   // ── fetch pre-computed critical pinches (≥95%) — served from JSON, instant ──
@@ -805,40 +799,25 @@ export function DataMap(props: Props) {
       return
     }
     let cancelled = false
-    setLoadingPinch(true)
-    const timer = setTimeout(() => {
-      if (cancelled) return
-      setLoadingPinch(true)
-      fetchPinchPoints(species, bbox, 8)
-          .then(resp => {
-            if (cancelled) return
-            const effectiveBbox = bbox ?? viewportBbox(m)
-            fetchPinchPoints(species, effectiveBbox, 8)
-            const pps = resp.pinchPoints ?? []
-            const feats = pps.filter(p => p.location)
-                .map(p => pointFeature(p.location.lng, p.location.lat, {
-                  id: p.id, score: p.bottleneckScore ?? 0,
-                  cover: p.dominantLandCoverAtPoint ?? '',
-                  between: Array.isArray(p.betweenPatches) ? p.betweenPatches.join(' ↔ ') : (p.betweenPatches ?? ''),
-                  coords: `${p.location.lat.toFixed(4)}, ${p.location.lng.toFixed(4)}`,
-                }))
-            ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
-            onCounts(prev => ({...prev, pinch: feats.length}))
-            if (feats.length === 0) {
-              if (resp.status === 'INSUFFICIENT_HABITAT') {
-                setError('No bottlenecks: this area has too little ' + species + ' habitat. Pick a larger region or a species with broader range.')
-              } else {
-                setError('No bottlenecks above threshold in this area. Try a larger bbox.')
-              }
-            }
-          })
-          .catch((err: Error) => setError(err.message))
-          .finally(() => {
-            if (!cancelled) setLoadingPinch(false)
-          })
-    }, 800)
-    return () => { cancelled = true; clearTimeout(timer) }
-  }, [mapReady, species, bbox])
+    fetchCriticalPinches(species, 0, bbox)
+      .then(pinches => {
+        if (cancelled) return
+        const feats = pinches.map(p => pointFeature(p.lng, p.lat, {
+          id: p.region + ':' + p.id,
+          score: p.score,
+          cover: p.cover ?? '',
+          between: p.between ?? '',
+          coords: `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`,
+        }))
+        ;(m.getSource(PINCH_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+        onCounts(prev => ({ ...prev, pinch: feats.length }))
+        if (feats.length === 0) {
+          setError('No precomputed pinch points fall inside the selected region. Try drawing over one of the showcase areas (Hoge Veluwe, Utrechtse Heuvelrug, Biesbosch, Salland-Twente).')
+        }
+      })
+      .catch((err: Error) => setError(err.message))
+    return () => { cancelled = true }
+  }, [mapReady, species, bbox, onCounts, criticalPinches])
 
   // ── fetch connectivity grid ───────────────────────────────────────────────
   useEffect(() => {

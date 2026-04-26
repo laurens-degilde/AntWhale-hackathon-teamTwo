@@ -1051,49 +1051,17 @@ export default function AppPage() {
                     <div style={{ position: "absolute", inset: 0, background: "rgba(10,15,8,0.72)", backdropFilter: "blur(6px)" }} />
                     <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", zIndex: 1, width: "100%", maxHeight: "88vh", background: "#f0eee6", borderRadius: "12px 12px 0 0", animation: "slideUp 0.35s cubic-bezier(0.2,0.8,0.2,1)", overflow: "hidden" }}>
 
-                        {/* Forest strip header (restored from v1) */}
-                        <div style={{ position: "relative", height: "64px", background: "#1a2818", overflow: "hidden", flexShrink: 0 }}>
-                            {[
-                                { src: tree3Png, left: "-10px", h: "80px", op: 0.35 },
-                                { src: tree1Png, left: "30px",  h: "90px", op: 0.45 },
-                                { src: tree2Png, left: "72px",  h: "68px", op: 0.3  },
-                                { src: tree3Png, left: "108px", h: "82px", op: 0.38 },
-                                { src: tree1Png, left: "148px", h: "72px", op: 0.28 },
-                                { src: tree2Png, left: "186px", h: "86px", op: 0.4  },
-                                { src: tree3Png, left: "228px", h: "70px", op: 0.32 },
-                                { src: tree1Png, left: "264px", h: "88px", op: 0.36 },
-                                { src: tree2Png, left: "304px", h: "74px", op: 0.28 },
-                                { src: tree3Png, left: "340px", h: "82px", op: 0.34 },
-                            ].map((t, i) => (
-                                <img key={i} src={t.src} alt="" style={{ position: "absolute", bottom: 0, left: t.left, height: t.h, width: "auto", opacity: t.op, filter: "brightness(0.7)" }} />
-                            ))}
-                            {[
-                                { src: tree1Png, right: "-10px", h: "82px", op: 0.35 },
-                                { src: tree2Png, right: "28px",  h: "72px", op: 0.4  },
-                                { src: tree3Png, right: "66px",  h: "88px", op: 0.32 },
-                                { src: tree1Png, right: "106px", h: "68px", op: 0.3  },
-                                { src: tree2Png, right: "142px", h: "84px", op: 0.38 },
-                                { src: tree3Png, right: "182px", h: "74px", op: 0.28 },
-                                { src: tree1Png, right: "218px", h: "80px", op: 0.34 },
-                                { src: tree2Png, right: "256px", h: "70px", op: 0.3  },
-                                { src: tree3Png, right: "292px", h: "86px", op: 0.36 },
-                                { src: tree1Png, right: "330px", h: "76px", op: 0.28 },
-                            ].map((t, i) => (
-                                <img key={i} src={t.src} alt="" style={{ position: "absolute", bottom: 0, right: t.right, height: t.h, width: "auto", opacity: t.op, filter: "brightness(0.7)", transform: "scaleX(-1)" }} />
-                            ))}
-                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "24px", background: "linear-gradient(to bottom, transparent, #f0eee6)" }} />
-                            <button
-                                onClick={() => setReportOpen(false)}
-                                style={{ position: "absolute", top: "14px", right: "20px", background: "rgba(240,238,230,0.12)", border: "1px solid rgba(240,238,230,0.2)", borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer", color: "rgba(240,238,230,0.7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", zIndex: 2 }}
-                            >✕</button>
-                        </div>
+                        <button
+                            onClick={() => setReportOpen(false)}
+                            style={{ position: "absolute", top: "14px", right: "20px", background: "rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.12)", borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer", color: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", zIndex: 2 }}
+                        >✕</button>
 
                         <div style={{ padding: "40px 64px 64px", overflowY: "auto", maxHeight: "calc(88vh - 64px)" }}>
                             <div style={{ marginBottom: "40px" }}>
                                 <div style={{ fontFamily: FUTURA, fontSize: "0.65rem", letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(0,0,0,0.32)", marginBottom: "14px" }}>Action Plan</div>
                                 <div style={{ fontFamily: FUTURA, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", lineHeight: 0.9 }}>
-                                    <div style={{ fontSize: "clamp(1.8rem, 3vw, 3rem)", color: "#1a2818" }}>Generate</div>
-                                    <div style={{ fontSize: "clamp(1.8rem, 3vw, 3rem)", color: "#2a4020" }}>Technical Report.</div>
+                                    <div style={{ fontSize: "clamp(1.8rem, 3vw, 3rem)", color: "#1a1814" }}>Generate</div>
+                                    <div style={{ fontSize: "clamp(1.8rem, 3vw, 3rem)", color: "#3a342a" }}>Technical Report.</div>
                                 </div>
                                 <p style={{ marginTop: "18px", fontFamily: DM_SANS, fontSize: "0.88rem", color: "rgba(0,0,0,0.52)", lineHeight: 1.8, maxWidth: "520px", margin: "18px 0 0" }}>
                                     Generates a costed, ranked, cited PDF for the perimeter and species selected on the map. Hand it to a province, NGO, or municipality.
