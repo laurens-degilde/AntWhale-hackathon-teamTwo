@@ -18,17 +18,22 @@ import { fetchCriticalPinches } from '../api/criticalPinches'
 import { fetchConnectivity, gridToCanvas } from '../api/connectivity'
 import { fetchHabitatPatches, type HabitatPatch } from '../api/habitatPatches'
 import { SPECIES, type Species } from '../api/technicalReport'
+import { type CommunityReportRequest } from '../api/communityReports'
 
 interface Props {
   species: Species
   bbox: string | null
   layers: { ecoducts: boolean; occurrences: boolean; roadkill: boolean; pinch: boolean; connectivity: boolean; patches: boolean }
   flyTo?: { lat: number; lng: number; zoom: number; _seq: number } | null
+  connectivityOpacity?: number
+  reportMode?: boolean
+  communityReports?: CommunityReportRequest[]
   onSpeciesChange: (s: Species) => void
   onBboxChange: (b: string | null) => void
   onLayerToggle: (key: keyof Props['layers']) => void
   onCounts: (counts: { occurrences: number; roadkill: number; pinch: number } | ((prev: { occurrences: number; roadkill: number; pinch: number }) => { occurrences: number; roadkill: number; pinch: number })) => void
   onRequestPlan: () => void
+  onMapClick?: (lat: number, lng: number) => void
 }
 
 interface PointFeature {
@@ -37,14 +42,15 @@ interface PointFeature {
   properties: Record<string, unknown>
 }
 
-const ECODUCTS_SRC     = 'src-ecoducts'
-const OCC_SRC          = 'src-occurrences'
-const RK_SRC           = 'src-roadkill'
-const PINCH_SRC        = 'src-pinch'
+const ECODUCTS_SRC       = 'src-ecoducts'
+const OCC_SRC            = 'src-occurrences'
+const RK_SRC             = 'src-roadkill'
+const PINCH_SRC          = 'src-pinch'
 const CRITICAL_PINCH_SRC = 'src-pinch-critical'
-const BBOX_SRC         = 'src-bbox'
-const PATCHES_SRC      = 'src-patches'
-const CONNECTIVITY_SRC = 'src-connectivity'
+const BBOX_SRC           = 'src-bbox'
+const PATCHES_SRC        = 'src-patches'
+const CONNECTIVITY_SRC   = 'src-connectivity'
+const COMMUNITY_SRC      = 'src-community'
 
 const NL_CENTER: [number, number] = [5.29, 52.13]
 const BLANK_PNG = (() => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; return c.toDataURL() })()
@@ -229,6 +235,34 @@ function roadkillDetailHtml(p: Record<string, string>): string {
   )
 }
 
+function communityReportHtml(p: Record<string, string>): string {
+  const typeMap: Record<string, { icon: string; label: string; color: string }> = {
+    roadkill:    { icon: '🚗', label: 'Road-kill',     color: '#c0392b' },
+    crossing:    { icon: '🌿', label: 'New crossing',  color: '#4a9e5c' },
+    observation: { icon: '🐾', label: 'Observation',   color: '#B87830' },
+  }
+  const t = typeMap[p.rtype] ?? { icon: '📍', label: 'Report', color: '#2a4020' }
+  const d = p.date
+    ? new Date(p.date).toLocaleDateString('en-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'Date unknown'
+  return (
+    `<div style="font-family:'DM Sans',sans-serif;width:230px">` +
+    `<div style="background:${t.color};padding:14px 16px 12px;position:relative;overflow:hidden">` +
+    diagonalTexture +
+    `<div style="position:relative;display:flex;align-items:center;gap:10px">` +
+    `<span style="font-size:22px;line-height:1">${t.icon}</span>` +
+    `<div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:8px;color:rgba(240,238,230,0.55);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:3px">Community report</div>` +
+    `<div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:13px;font-weight:700;color:#f0eee6;text-transform:uppercase;letter-spacing:0.04em">${esc(t.label)}</div>` +
+    `</div></div></div>` +
+    `<div style="padding:12px 16px 14px;background:#f0eee6">` +
+    row('Species', p.species && p.species !== 'unknown' ? p.species : 'Unknown') +
+    row('Date', d) +
+    (p.note ? `<div style="padding:7px 0;border-top:1px solid rgba(0,0,0,0.09)"><div style="font-family:'Futura','Trebuchet MS','Century Gothic',sans-serif;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(0,0,0,0.45);margin-bottom:4px">Notes</div><div style="font-family:'DM Sans',sans-serif;font-size:11px;color:#1a2818;line-height:1.5">${esc(p.note)}</div></div>` : '') +
+    `</div></div>`
+  )
+}
+
 function tooltipHtml(isRoadkill: boolean, date: string): string {
   const d = date
     ? new Date(date).toLocaleDateString('en-NL', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -253,6 +287,7 @@ export function DataMap(props: Props) {
   const hoverPopRef     = useRef<maplibregl.Popup | null>(null)
   const clickPopRef     = useRef<maplibregl.Popup | null>(null)
   const onBboxChangeRef = useRef(onBboxChange)
+  const onMapClickRef   = useRef(props.onMapClick)
   const isDrawingRef    = useRef(false)
   const drawStartRef    = useRef<[number, number] | null>(null)
   const [mapReady,        setMapReady]        = useState(false)
@@ -264,7 +299,27 @@ export function DataMap(props: Props) {
   const speciesLabel = useMemo(() => SPECIES.find(s => s.value === species)?.label ?? species, [species])
 
   useEffect(() => { onBboxChangeRef.current = onBboxChange }, [onBboxChange])
+  useEffect(() => { onMapClickRef.current = props.onMapClick }, [props.onMapClick])
   useEffect(() => { isDrawingRef.current = isDrawing }, [isDrawing])
+
+  // ── report-mode map click ────────────────────────────────────────────────
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !mapReady) return
+    if (props.reportMode) {
+      m.getCanvas().style.cursor = 'crosshair'
+      const handler = (e: maplibregl.MapMouseEvent) => {
+        onMapClickRef.current?.(e.lngLat.lat, e.lngLat.lng)
+      }
+      m.once('click', handler)
+      return () => {
+        m.off('click', handler)
+        if (!isDrawingRef.current) m.getCanvas().style.cursor = ''
+      }
+    } else {
+      if (!isDrawingRef.current) m.getCanvas().style.cursor = ''
+    }
+  }, [props.reportMode, mapReady])
 
   // ── init map ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -306,6 +361,7 @@ export function DataMap(props: Props) {
         type: 'image', url: BLANK_PNG,
         coordinates: [[3.2,53.6],[7.2,53.6],[7.2,50.7],[3.2,50.7]],
       })
+      m.addSource(COMMUNITY_SRC, { type: 'geojson', data: emptyFc() })
 
       // ── connectivity heatmap ──
       m.addLayer({ id: 'lyr-connectivity', type: 'raster', source: CONNECTIVITY_SRC,
@@ -318,6 +374,14 @@ export function DataMap(props: Props) {
         paint: { 'line-color': '#2a4020', 'line-width': 1.5, 'line-dasharray': [5, 4] } })
 
       // ── habitat patches ──
+      m.addLayer({ id: 'lyr-patches-halo', type: 'circle', source: PATCHES_SRC,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 16, 12, 30],
+          'circle-color': '#2a4020',
+          'circle-opacity': 0.08,
+          'circle-stroke-width': 0,
+        },
+      })
       m.addLayer({ id: 'lyr-patches', type: 'symbol', source: PATCHES_SRC,
         layout: {
           'icon-image': 'habitat-icon',
@@ -337,6 +401,23 @@ export function DataMap(props: Props) {
           'text-color': '#2a4020',
           'text-halo-color': 'rgba(240,238,230,0.95)',
           'text-halo-width': 2,
+        },
+      })
+
+      m.addLayer({ id: 'lyr-patches-label', type: 'symbol', source: PATCHES_SRC,
+        layout: {
+          'text-field': ['get', 'area_ha'],
+          'text-font': ['Noto Sans Regular'],
+          'text-size': 9,
+          'text-offset': [0, 1.2],
+          'text-anchor': 'top',
+          'text-optional': true,
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': 'rgba(42,64,32,0.55)',
+          'text-halo-color': 'rgba(240,238,230,0.9)',
+          'text-halo-width': 1.5,
         },
       })
 
@@ -366,6 +447,15 @@ export function DataMap(props: Props) {
         layout: { 'text-field': '', 'text-font': ['Noto Sans Regular'] },
         paint: {},
       })
+      m.addLayer({ id: 'lyr-occurrences-halo', type: 'circle', source: OCC_SRC,
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 8, 12, 16],
+          'circle-color': '#2E6028',
+          'circle-opacity': 0.10,
+          'circle-stroke-width': 0,
+        },
+      })
       m.addLayer({ id: 'lyr-occurrences', type: 'symbol', source: OCC_SRC,
         filter: ['!', ['has', 'point_count']],
         layout: {
@@ -378,6 +468,21 @@ export function DataMap(props: Props) {
       })
 
       // ── roadkill ──
+      m.addLayer({ id: 'lyr-rk-heat', type: 'heatmap', source: RK_SRC,
+        maxzoom: 11,
+        paint: {
+          'heatmap-weight': 1,
+          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 5, 0.4, 11, 1.2],
+          'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
+            0, 'rgba(192,57,43,0)',
+            0.2, 'rgba(192,57,43,0.2)',
+            0.6, 'rgba(192,57,43,0.55)',
+            1,   'rgba(192,57,43,0.85)',
+          ],
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 5, 14, 11, 28],
+          'heatmap-opacity': 0.7,
+        },
+      })
       m.addLayer({
         id: 'lyr-rk-skull', type: 'symbol', source: RK_SRC,
         layout: {
@@ -389,7 +494,32 @@ export function DataMap(props: Props) {
         paint: { 'icon-opacity': 0.9 },
       })
 
+      // ── community reports ──
+      m.addLayer({ id: 'lyr-community', type: 'circle', source: COMMUNITY_SRC,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 7, 12, 12],
+          'circle-color': [
+            'match', ['get', 'rtype'],
+            'roadkill',    '#c0392b',
+            'crossing',    '#4a9e5c',
+            'observation', '#B87830',
+            '#2a4020',
+          ],
+          'circle-opacity': 0.9,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#f0eee6',
+        },
+      })
+
       // ── ecoducts ──
+      m.addLayer({ id: 'lyr-ecoducts-halo', type: 'circle', source: ECODUCTS_SRC,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 14, 12, 26],
+          'circle-color': '#4a9e5c',
+          'circle-opacity': 0.12,
+          'circle-stroke-width': 0,
+        },
+      })
       m.addLayer({ id: 'lyr-ecoducts', type: 'symbol', source: ECODUCTS_SRC,
         layout: {
           'icon-image': 'ecoduct-icon',
@@ -493,6 +623,11 @@ export function DataMap(props: Props) {
         const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
         openPopup(patchHtml(f.properties as Record<string, string>), lng, lat)
       })
+      m.on('click', 'lyr-community', (e) => {
+        const f = e.features?.[0]; if (!f) return
+        const [lng, lat] = (f.geometry as unknown as { coordinates: [number, number] }).coordinates
+        openPopup(communityReportHtml(f.properties as Record<string, string>), lng, lat)
+      })
 
       // ── cluster zoom-in ───────────────────────────────────────────────────
       m.on('click', 'lyr-occ-cluster', (e) => {
@@ -538,7 +673,7 @@ export function DataMap(props: Props) {
 
       // ── cursors ───────────────────────────────────────────────────────────
       const pointerLayers = ['lyr-ecoducts','lyr-pinch','lyr-patches','lyr-occurrences',
-                             'lyr-rk-skull','lyr-occ-cluster']
+                             'lyr-rk-skull','lyr-occ-cluster','lyr-community']
       pointerLayers.forEach(id => {
         m.on('mouseenter', id, () => { if (!isDrawingRef.current) m.getCanvas().style.cursor = 'pointer' })
         m.on('mouseleave', id, () => { if (!isDrawingRef.current) m.getCanvas().style.cursor = '' })
@@ -603,6 +738,13 @@ export function DataMap(props: Props) {
     m.setLayoutProperty('lyr-pinch-halo',       'visibility', vis(layers.pinch))
     m.setLayoutProperty('lyr-pinch',            'visibility', vis(layers.pinch))
   }, [mapReady, layers])
+
+  // ── connectivity opacity ─────────────────────────────────────────────────
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !mapReady) return
+    m.setPaintProperty('lyr-connectivity', 'raster-opacity', props.connectivityOpacity ?? 0.70)
+  }, [mapReady, props.connectivityOpacity])
 
   // ── fetch occurrences ────────────────────────────────────────────────────
   // Always NL-wide via iNat place_id (7506); bbox is for corridor analysis, not
@@ -749,6 +891,19 @@ export function DataMap(props: Props) {
       .catch((err: Error) => setError(err.message))
     return () => { cancelled = true }
   }, [mapReady, species])
+
+  // ── community reports layer ──────────────────────────────────────────────
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !mapReady) return
+    const reports = props.communityReports ?? []
+    const feats = reports
+      .filter(r => typeof r.lat === 'number' && typeof r.lng === 'number')
+      .map(r => pointFeature(r.lng, r.lat, {
+        rtype: r.rtype, species: r.species ?? '', note: r.note ?? '', date: r.date ?? '',
+      }))
+    ;(m.getSource(COMMUNITY_SRC) as GeoJSONSource | undefined)?.setData(asFc(feats))
+  }, [mapReady, props.communityReports])
 
   // ── drawing mode: cursor + dragPan ───────────────────────────────────────
   useEffect(() => {

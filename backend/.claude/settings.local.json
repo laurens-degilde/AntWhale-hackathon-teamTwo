@@ -3,7 +3,17 @@
     "allow": [
       "Read(//opt/homebrew/opt/**)",
       "Read(//Library/Java/JavaVirtualMachines/**)",
-      "Bash(/usr/libexec/java_home -V)"
+      "Bash(/usr/libexec/java_home -V)",
+      "Bash(java -version)",
+      "Bash(javac -version)",
+      "Bash(grep -i \"report\\\\|submit\\\\|post\" \"/Volumes/Umberto Eco's Library/hack/AntWhale-hackathon-teamTwo/frontend/src/api/\"*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx --prefix \"/Volumes/Umberto Eco's Library/hack/AntWhale-hackathon-teamTwo/frontend\" tsc --noEmit)",
+      "Bash(\"/Volumes/Umberto Eco's Library/hack/AntWhale-hackathon-teamTwo/frontend/node_modules/.bin/tsc\" --project \"/Volumes/Umberto Eco's Library/hack/AntWhale-hackathon-teamTwo/frontend/tsconfig.json\" --noEmit)",
+      "Bash(mvn compile:*)",
+      "Bash(curl -s http://localhost:8080/api/health)",
+      "Bash(curl:*)",
+      "Bash(bash:*)"
     ]
   }
 }

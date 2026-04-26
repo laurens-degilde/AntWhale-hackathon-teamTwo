@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { postCommunityReport, getCommunityReports, type CommunityReportRequest } from "../api/communityReports";
 import { useNavigate } from "react-router-dom";
 import "../map.css";
 import { DataMap } from "./DataMap";
@@ -22,15 +23,6 @@ type ReportType = "roadkill" | "crossing" | "observation";
 
 interface MapCounts { occurrences: number; roadkill: number; pinch: number }
 
-interface UserReport {
-    id: string;
-    rtype: ReportType;
-    species: string;
-    note: string;
-    lat: number;
-    lng: number;
-    date: string;
-}
 
 const FUTURA = "'Futura', 'Trebuchet MS', 'Century Gothic', sans-serif";
 const DM_SANS = "'DM Sans', system-ui, sans-serif";
@@ -507,7 +499,7 @@ function ReportSheet({
                                 return (
                                     <button
                                         key={t.key}
-                                        onClick={() => { if (t.key === "map" && !pin) { onPickOnMap(); } else { switchTo(t.key); } }}
+                                        onClick={() => { if (t.key === "map" && !pin) { setLocSource("map"); onPickOnMap(); } else { switchTo(t.key); } }}
                                         style={{
                                             display: "flex", alignItems: "center", gap: 6,
                                             padding: "8px 13px",
@@ -730,11 +722,15 @@ export default function AppPage() {
     const [activePreset, setActivePreset]             = useState<string | null>(null);
     const [reportOpen, setReportOpen]                 = useState(false);
 
-    const [reportMode, setReportMode]         = useState(false);
-    const [reportPin, setReportPin]           = useState<{ lat: number; lng: number } | null>(null);
-    const [reportFormOpen, setReportFormOpen] = useState(false);
-    const [userReports, setUserReports]       = useState<UserReport[]>([]);
-    const [reportToast, setReportToast]       = useState(false);
+    const [reportMode, setReportMode]               = useState(false);
+    const [reportPin, setReportPin]                 = useState<{ lat: number; lng: number } | null>(null);
+    const [reportFormOpen, setReportFormOpen]       = useState(false);
+    const [communityReports, setCommunityReports]   = useState<CommunityReportRequest[]>([]);
+    const [reportToast, setReportToast]             = useState(false);
+
+    useEffect(() => {
+        getCommunityReports().then(setCommunityReports).catch(console.error);
+    }, []);
 
     const [searchQuery, setSearchQuery]     = useState("");
     const [searchLoading, setSearchLoading] = useState(false);
@@ -780,18 +776,20 @@ export default function AppPage() {
         setReportFormOpen(true);
     }, []);
 
-    function submitReport(rtype: ReportType, species: string, note: string, coords: { lat: number; lng: number }) {
-        const report: UserReport = {
-            id: `ur-${Date.now()}`,
-            rtype, species, note,
-            lat: coords.lat, lng: coords.lng,
-            date: new Date().toISOString().slice(0, 10),
-        };
-        setUserReports((prev) => [...prev, report]);
+    async function submitReport(rtype: ReportType, species: string, note: string, coords: { lat: number; lng: number }) {
+        const date = new Date().toISOString().slice(0, 10);
+        const newReport: CommunityReportRequest = { rtype, species, note, lat: coords.lat, lng: coords.lng, date };
         setReportFormOpen(false);
         setReportPin(null);
+        // Optimistically add to local state so the pin appears immediately
+        setCommunityReports((prev) => [...prev, newReport]);
         setReportToast(true);
         setTimeout(() => setReportToast(false), 3500);
+        try {
+            await postCommunityReport(newReport);
+        } catch (err) {
+            console.error("Failed to submit report:", err);
+        }
     }
 
     async function handleSearch(e: React.FormEvent) {
@@ -820,7 +818,7 @@ export default function AppPage() {
                 flyTo={flyTo}
                 connectivityOpacity={connectivityOpacity}
                 reportMode={reportMode}
-                userReports={userReports}
+                communityReports={communityReports}
                 onMapClick={handleMapClick}
                 onSpeciesChange={setSpecies}
                 onBboxChange={(b) => { setBbox(b); if (!b) setActivePreset(null); }}
